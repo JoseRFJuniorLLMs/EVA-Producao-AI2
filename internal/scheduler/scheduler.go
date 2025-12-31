@@ -109,28 +109,25 @@ func (s *Scheduler) checkAndTriggerCalls() {
 			continue
 		}
 
-		// Validar token antes de enviar
-		if !s.pushService.ValidateToken(deviceToken.String) {
-			log.Printf("⚠️  Token inválido para: %s", nome)
-			s.updateStatus(agendamentoID, "falha_token_invalido")
-
-			// Marcar que o token precisa ser atualizado
-			_, _ = s.db.Exec(`
-				UPDATE idosos 
-				SET device_token_valido = false, 
-				    device_token_atualizado_em = NOW()
-				WHERE id = $1
-			`, idosoID)
-
-			continue
-		}
-
 		sessionID := fmt.Sprintf("call-%d-%d", agendamentoID, time.Now().Unix())
 
 		err := s.pushService.SendCallNotification(deviceToken.String, sessionID, nome)
 		if err != nil {
-			log.Printf("❌ Erro ao enviar push: %s - %v", nome, err)
-			s.updateStatus(agendamentoID, "falha_envio")
+			if push.IsInvalidTokenError(err) {
+				log.Printf("⚠️  Token inválido para: %s (%v)", nome, err)
+				s.updateStatus(agendamentoID, "falha_token_invalido")
+
+				// Marcar que o token precisa ser atualizado
+				_, _ = s.db.Exec(`
+					UPDATE idosos 
+					SET device_token_valido = false, 
+					    device_token_atualizado_em = NOW()
+					WHERE id = $1
+				`, idosoID)
+			} else {
+				log.Printf("❌ Erro ao enviar push: %s - %v", nome, err)
+				s.updateStatus(agendamentoID, "falha_envio")
+			}
 			continue
 		}
 

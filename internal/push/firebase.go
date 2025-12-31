@@ -253,10 +253,23 @@ func (s *FirebaseService) ValidateToken(deviceToken string) bool {
 		},
 	}
 
-	_, err := s.client.Send(s.ctx, message)
-	return err == nil
+	response, err := s.client.Send(s.ctx, message)
+	if err != nil {
+		log.Printf("❌ ValidateToken failed for token %s...: %v", deviceToken[:10], err)
+		return false
+	}
+	_ = response // Ignorar response ID
+	return true
 }
 
 // GetClient e GetContext para flexibilidade em outros módulos
 func (s *FirebaseService) GetClient() *messaging.Client { return s.client }
 func (s *FirebaseService) GetContext() context.Context  { return s.ctx }
+
+// IsInvalidTokenError verifica se o erro retornado pelo Firebase indica que o token é inválido
+func IsInvalidTokenError(err error) bool {
+	if messaging.IsRegistrationTokenNotRegistered(err) || messaging.IsSenderIDMismatch(err) {
+		return true
+	}
+	return false
+}
