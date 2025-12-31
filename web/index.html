@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EVA Family Portal - Dashboard Completo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #fdf2f8 0%, #fce7f3 50%, #fbcfe8 100%);
+            color: #831843;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #ec4899 0%, #db2777 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 24px rgba(219, 39, 119, 0.3);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 32px;
+            font-weight: 700;
+        }
+
+        .status-badge {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 8px 16px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            background: #10b981;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        .logs-container {
+            background: rgba(255, 255, 255, 0.9);
+            border: 2px solid #f9a8d4;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 8px 24px rgba(219, 39, 119, 0.2);
+        }
+
+        .logs-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .logs-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: #831843;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .error-count {
+            background: #be123c;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        #logs {
+            max-height: 500px;
+            overflow-y: auto;
+            background: #fdf2f8;
+            border-radius: 8px;
+            padding: 15px;
+        }
+
+        .log {
+            margin-bottom: 10px;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 16px;
+            line-height: 1.6;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .log-icon {
+            font-size: 24px;
+            flex-shrink: 0;
+        }
+
+        .info {
+            background: rgba(236, 72, 153, 0.15);
+            border-left: 5px solid #ec4899;
+            color: #831843;
+        }
+
+        .warn {
+            background: rgba(245, 158, 11, 0.15);
+            border-left: 5px solid #f59e0b;
+            color: #b45309;
+        }
+
+        .error {
+            background: rgba(190, 18, 60, 0.15);
+            border-left: 5px solid #be123c;
+            color: #9f1239;
+            font-weight: 700;
+            font-size: 18px;
+        }
+
+        #logs::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        #logs::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #ec4899 0%, #db2777 100%);
+            border-radius: 5px;
+        }
+
+        #logs::-webkit-scrollbar-track {
+            background: rgba(236, 72, 153, 0.1);
+            border-radius: 5px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <div>
+            <h1>🎯 EVA Family Portal</h1>
+            <p style="margin-top: 8px; opacity: 0.9;">Dashboard de Monitoramento em Tempo Real</p>
+        </div>
+        <div class="status-badge">
+            <div class="status-dot"></div>
+            <span>Online</span>
+        </div>
+    </div>
+
+    <div class="logs-container">
+        <div class="logs-header">
+            <div class="logs-title">
+                🔴 Logs do Servidor EVA-Mind
+            </div>
+            <div class="error-count" id="errorCount">0 Erros</div>
+        </div>
+        <div id="logs"></div>
+    </div>
+
+    <script>
+        let errorCount = 0;
+        let warnCount = 0;
+        let lastErrorSound = 0;
+        let lastWarnSound = 0;
+
+        function playErrorSound() {
+            const now = Date.now();
+            // Evitar tocar som muito frequentemente (máximo 1 por segundo)
+            if (now - lastErrorSound < 1000) return;
+            lastErrorSound = now;
+
+            try {
+                const context = new (window.AudioContext || window.webkitAudioContext)();
+
+                // Som de erro - beep duplo
+                const oscillator1 = context.createOscillator();
+                const gainNode1 = context.createGain();
+
+                oscillator1.connect(gainNode1);
+                gainNode1.connect(context.destination);
+
+                oscillator1.frequency.value = 800;
+                oscillator1.type = 'square';
+                gainNode1.gain.setValueAtTime(0.3, context.currentTime);
+                gainNode1.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.1);
+
+                oscillator1.start(context.currentTime);
+                oscillator1.stop(context.currentTime + 0.1);
+
+                // Segundo beep
+                const oscillator2 = context.createOscillator();
+                const gainNode2 = context.createGain();
+
+                oscillator2.connect(gainNode2);
+                gainNode2.connect(context.destination);
+
+                oscillator2.frequency.value = 600;
+                oscillator2.type = 'square';
+                gainNode2.gain.setValueAtTime(0.3, context.currentTime + 0.15);
+                gainNode2.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.25);
+
+                oscillator2.start(context.currentTime + 0.15);
+                oscillator2.stop(context.currentTime + 0.25);
+
+                console.log('🔊 Som de erro tocado!');
+            } catch (e) {
+                console.error('Erro ao tocar som:', e);
+            }
+        }
+
+        function playWarningSound() {
+            const now = Date.now();
+            // Evitar tocar som muito frequentemente (máximo 1 por segundo)
+            if (now - lastWarnSound < 1000) return;
+            lastWarnSound = now;
+
+            try {
+                const context = new (window.AudioContext || window.webkitAudioContext)();
+
+                // Som de alerta - beep único mais suave
+                const oscillator = context.createOscillator();
+                const gainNode = context.createGain();
+
+                oscillator.connect(gainNode);
+                gainNode.connect(context.destination);
+
+                oscillator.frequency.value = 500;
+                oscillator.type = 'sine';
+                gainNode.gain.setValueAtTime(0.2, context.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.15);
+
+                oscillator.start(context.currentTime);
+                oscillator.stop(context.currentTime + 0.15);
+
+                console.log('⚠️ Som de alerta tocado!');
+            } catch (e) {
+                console.error('Erro ao tocar som:', e);
+            }
+        }
+
+        async function fetchLogs() {
+            try {
+                const res = await fetch('/api/logs');
+                const data = await res.json();
+                const logsDiv = document.getElementById('logs');
+                logsDiv.innerHTML = '';
+
+                let currentErrors = 0;
+                let currentWarns = 0;
+
+                data.logs.forEach(log => {
+                    let cls = 'info';
+                    let icon = '📝';
+
+                    if (log.includes('⚠️')) {
+                        cls = 'warn';
+                        icon = '⚠️';
+                        currentWarns++;
+                    }
+                    if (log.includes('❌')) {
+                        cls = 'error';
+                        icon = '❌';
+                        currentErrors++;
+                    }
+                    if (log.includes('✅')) {
+                        icon = '✅';
+                    }
+                    if (log.includes('📞')) {
+                        icon = '📞';
+                    }
+                    if (log.includes('⏱️')) {
+                        icon = '⏱️';
+                    }
+                    if (log.includes('🔄')) {
+                        icon = '🔄';
+                    }
+                    if (log.includes('✨')) {
+                        icon = '✨';
+                    }
+
+                    const div = document.createElement('div');
+                    div.className = 'log ' + cls;
+                    div.innerHTML = `
+                        <span class="log-icon">${icon}</span>
+                        <span>${log}</span>
+                    `;
+                    logsDiv.appendChild(div);
+                });
+
+                // Atualizar contador de erros e tocar sons
+                if (currentErrors > errorCount) {
+                    playErrorSound();
+                }
+                if (currentWarns > warnCount) {
+                    playWarningSound();
+                }
+                errorCount = currentErrors;
+                warnCount = currentWarns;
+                document.getElementById('errorCount').textContent = errorCount + ' Erros';
+
+                logsDiv.scrollTop = logsDiv.scrollHeight;
+            } catch (e) {
+                console.error('Erro ao buscar logs:', e);
+                const logsDiv = document.getElementById('logs');
+                const div = document.createElement('div');
+                div.className = 'log error';
+                div.innerHTML = `
+                    <span class="log-icon">❌</span>
+                    <span><strong>[${new Date().toLocaleTimeString('pt-BR')}]</strong> ERRO: Não foi possível conectar ao servidor de logs</span>
+                `;
+                logsDiv.appendChild(div);
+            }
+        }
+
+        // Atualiza a cada 2 segundos
+        setInterval(fetchLogs, 2000);
+        fetchLogs();
+    </script>
+</body>
+
+</html>
