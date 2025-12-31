@@ -140,6 +140,7 @@ func main() {
 
 	router := mux.NewRouter()
 	router.HandleFunc("/wss", signalingServer.HandleWebSocket)
+	router.HandleFunc("/ws/pcm", signalingServer.HandleWebSocket) // Legado para App Android
 
 	api := router.PathPrefix("/api").Subrouter()
 	api.HandleFunc("/stats", statsHandler).Methods("GET")

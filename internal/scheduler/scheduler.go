@@ -89,11 +89,25 @@ func (s *Scheduler) checkAndTriggerCalls() {
 		LIMIT 10
 	`
 
+	log.Printf("🔍 Buscando agendamentos para executar... (Server Time: %s)", now.Format(time.RFC3339))
+
+	// DEBUG: Verificar se o DB responde e qual o horário dele
+	var dbTime time.Time
+	errDbTime := s.db.QueryRow("SELECT NOW()").Scan(&dbTime)
+	if errDbTime != nil {
+		log.Printf("❌ ERRO CRÍTICO: Falha ao verificar hora do banco: %v", errDbTime)
+	} else {
+		log.Printf("🕒 Horário do Banco (DB Time): %s", dbTime.Format(time.RFC3339))
+	}
+
 	rows, err := s.db.Query(query, now)
 	if err != nil {
+		log.Printf("❌ Erro na query do scheduler: %v", err)
 		return
 	}
 	defer rows.Close()
+
+	found := false
 
 	for rows.Next() {
 		var agendamentoID, idosoID int64
@@ -133,6 +147,11 @@ func (s *Scheduler) checkAndTriggerCalls() {
 
 		log.Printf("📲 Push enviado: %s", nome)
 		s.updateStatusWithTimestamp(agendamentoID, "em_andamento")
+		found = true
+	}
+
+	if !found {
+		log.Printf("📭 Nenhum agendamento encontrado para agora.")
 	}
 }
 
