@@ -104,7 +104,25 @@ func (c *Client) SendSetup(instructions string, tools []interface{}) error {
 }
 
 func (c *Client) SendAudio(audioData []byte) error {
+	log.Printf("🎤 ========================================")
+	log.Printf("🎤 ENVIANDO ÁUDIO PARA GEMINI")
+	log.Printf("🎤 ========================================")
+	log.Printf("📊 Tamanho do áudio RAW: %d bytes", len(audioData))
+
+	// Mostrar primeiros bytes do áudio (hexadecimal)
+	if len(audioData) > 0 {
+		previewLen := 32
+		if len(audioData) < previewLen {
+			previewLen = len(audioData)
+		}
+		log.Printf("🔍 Primeiros %d bytes (HEX): % X", previewLen, audioData[:previewLen])
+		log.Printf("🔍 Primeiros %d bytes (DEC): %v", previewLen, audioData[:previewLen])
+	}
+
+	log.Printf("🔄 Codificando para Base64...")
 	encoded := base64.StdEncoding.EncodeToString(audioData)
+	log.Printf("📊 Tamanho Base64: %d chars", len(encoded))
+	log.Printf("🔍 Base64 preview (primeiros 100 chars): %s...", encoded[:min(100, len(encoded))])
 
 	msg := map[string]interface{}{
 		"realtime_input": map[string]interface{}{
@@ -121,14 +139,29 @@ func (c *Client) SendAudio(audioData []byte) error {
 		},
 	}
 
-	// Log apenas a cada 50 pacotes para não poluir
-	if len(audioData)%50 == 0 {
-		log.Printf("🎤 Enviando áudio para Gemini: %d bytes (base64: %d chars)", len(audioData), len(encoded))
-	}
+	log.Printf("📤 Enviando JSON para Gemini WebSocket...")
+	log.Printf("📋 Payload structure: realtime_input.media_chunks[0].mime_type = audio/pcm")
+	log.Printf("📋 Payload structure: realtime_input.input_audio_transcription.enabled = true")
 
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	return c.conn.WriteJSON(msg)
+
+	err := c.conn.WriteJSON(msg)
+	if err != nil {
+		log.Printf("❌ ERRO ao enviar áudio para Gemini: %v", err)
+		return err
+	}
+
+	log.Printf("✅ Áudio enviado com SUCESSO para Gemini!")
+	log.Printf("🎤 ========================================")
+	return nil
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 func (c *Client) ReadResponse() (map[string]interface{}, error) {
