@@ -56,6 +56,8 @@ func (c *Client) SendSetup(instructions string, tools []interface{}) error {
 							"voice_name": "Aoede",
 						},
 					},
+					// CORREÇÃO: Adicionar language_code (baseado no exemplo JS)
+					"language_code": "pt-BR",
 				},
 			},
 			"system_instruction": map[string]interface{}{
