@@ -3,6 +3,7 @@ package gemini
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"eva-mind/internal/config"
 	"fmt"
 	"log"
@@ -13,24 +14,23 @@ import (
 )
 
 type Client struct {
-	conn         *websocket.Conn
-	mu           sync.Mutex
-	cfg          *config.Config
-	audioBuffer  []byte
-	bufferMu     sync.Mutex
-	lastSendTime time.Time
-	isProcessing bool
-	processingMu sync.Mutex
-	audioChan    chan []byte
-	stopChan     chan struct{}
+	conn            *websocket.Conn
+	mu              sync.Mutex
+	cfg             *config.Config
+	audioBuffer     []byte
+	bufferMu        sync.Mutex
+	lastSendTime    time.Time
+	isProcessing    bool
+	processingMu    sync.Mutex
+	audioChan       chan []byte
+	stopChan        chan struct{}
 }
 
 const (
-	// Configurações de buffering
-	minChunkSize      = 1280 // 80ms @ 16kHz (múltiplo de 640)
-	maxBufferSize     = 6400 // 400ms máximo
-	minSendInterval   = 80   // ms - evita envios muito rápidos
-	processingTimeout = 5000 // ms - timeout se Gemini não responder
+	minChunkSize      = 3200  // 200ms @ 16kHz (aumentado!)
+	maxBufferSize     = 16000 // 1s máximo
+	minSendInterval   = 200   // ms (aumentado para evitar spam)
+	processingTimeout = 3000  // ms
 )
 
 func NewClient(ctx context.Context, cfg *config.Config) (*Client, error) {
@@ -43,30 +43,27 @@ func NewClient(ctx context.Context, cfg *config.Config) (*Client, error) {
 	log.Printf("🔌 Conectando ao Gemini WebSocket...")
 	conn, resp, err := dialer.DialContext(ctx, url, nil)
 	if err != nil {
-		log.Printf("❌ Erro ao conectar Gemini WebSocket: %v", err)
+		log.Printf("❌ Erro ao conectar: %v", err)
 		return nil, err
 	}
 
-	log.Printf("✅ Gemini WebSocket conectado - Status: %s", resp.Status)
+	log.Printf("✅ Conectado - Status: %s", resp.Status)
 
 	client := &Client{
 		conn:         conn,
 		cfg:          cfg,
 		audioBuffer:  make([]byte, 0, maxBufferSize),
 		lastSendTime: time.Now(),
-		audioChan:    make(chan []byte, 64), // Buffer de 64 chunks
+		audioChan:    make(chan []byte, 128),
 		stopChan:     make(chan struct{}),
 	}
 
-	// Iniciar worker de processamento de áudio
 	go client.audioWorker(ctx)
-
 	return client, nil
 }
 
-// audioWorker processa áudio em background com buffering inteligente
 func (c *Client) audioWorker(ctx context.Context) {
-	ticker := time.NewTicker(50 * time.Millisecond) // Verificar buffer a cada 50ms
+	ticker := time.NewTicker(100 * time.Millisecond)
 	defer ticker.Stop()
 
 	log.Printf("🔧 Audio Worker iniciado")
@@ -74,60 +71,47 @@ func (c *Client) audioWorker(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
-			log.Printf("🛑 Audio Worker finalizado (context)")
 			return
 		case <-c.stopChan:
-			log.Printf("🛑 Audio Worker finalizado (stop)")
 			return
-
 		case audioChunk := <-c.audioChan:
 			c.bufferAudio(audioChunk)
-
 		case <-ticker.C:
 			c.flushBufferIfReady()
 		}
 	}
 }
 
-// bufferAudio adiciona áudio ao buffer interno
 func (c *Client) bufferAudio(chunk []byte) {
 	c.bufferMu.Lock()
 	defer c.bufferMu.Unlock()
 
-	// Adicionar ao buffer
 	c.audioBuffer = append(c.audioBuffer, chunk...)
 
-	// Se buffer atingiu tamanho ideal, enviar imediatamente
+	// Enviar quando buffer atingir tamanho ideal
 	if len(c.audioBuffer) >= minChunkSize {
 		c.flushBuffer()
 	}
 }
 
-// flushBufferIfReady envia buffer se condições forem atendidas
 func (c *Client) flushBufferIfReady() {
 	c.bufferMu.Lock()
 	defer c.bufferMu.Unlock()
-
-	// Condições para enviar:
-	// 1. Há dados no buffer
-	// 2. Tempo mínimo desde último envio passou
-	// 3. Gemini não está processando (ou timeout)
 
 	if len(c.audioBuffer) == 0 {
 		return
 	}
 
 	timeSinceLastSend := time.Since(c.lastSendTime).Milliseconds()
-
+	
 	if timeSinceLastSend < minSendInterval {
-		return // Muito rápido, aguardar
+		return
 	}
 
-	// Verificar se está processando há muito tempo (possível travamento)
 	c.processingMu.Lock()
 	processingTooLong := c.isProcessing && timeSinceLastSend > processingTimeout
 	if processingTooLong {
-		log.Printf("⚠️ Gemini não respondeu em %dms, forçando novo envio", processingTimeout)
+		log.Printf("⚠️ Gemini travado, forçando flush")
 		c.isProcessing = false
 	}
 	c.processingMu.Unlock()
@@ -135,34 +119,32 @@ func (c *Client) flushBufferIfReady() {
 	c.flushBuffer()
 }
 
-// flushBuffer envia o buffer atual (deve ser chamado com lock)
 func (c *Client) flushBuffer() {
 	if len(c.audioBuffer) == 0 {
 		return
 	}
 
-	// Verificar se já está processando
 	c.processingMu.Lock()
 	if c.isProcessing {
 		c.processingMu.Unlock()
-		return // Aguardar resposta anterior
+		return
 	}
 	c.isProcessing = true
 	c.processingMu.Unlock()
 
-	// Copiar buffer para enviar
 	toSend := make([]byte, len(c.audioBuffer))
 	copy(toSend, c.audioBuffer)
-
-	// Limpar buffer
+	
 	c.audioBuffer = c.audioBuffer[:0]
 	c.lastSendTime = time.Now()
 
-	// Enviar de forma assíncrona para não bloquear
 	go c.sendAudioInternal(toSend)
 }
 
 func (c *Client) SendSetup(instructions string, tools []interface{}) error {
+	// ============================================================
+	// CORREÇÃO CRÍTICA: Forçar resposta em PORTUGUÊS
+	// ============================================================
 	setupMsg := map[string]interface{}{
 		"setup": map[string]interface{}{
 			"model": fmt.Sprintf("models/%s", c.cfg.ModelID),
@@ -174,19 +156,33 @@ func (c *Client) SendSetup(instructions string, tools []interface{}) error {
 							"voice_name": "Aoede",
 						},
 					},
+					// IMPORTANTE: Forçar português brasileiro
 					"language_code": "pt-BR",
 				},
 			},
 			"system_instruction": map[string]interface{}{
 				"parts": []map[string]string{
-					{"text": instructions},
+					{
+						// CORREÇÃO: Instruções mais explícitas
+						"text": fmt.Sprintf(`%s
+
+REGRAS OBRIGATÓRIAS:
+1. Responda SEMPRE em português brasileiro
+2. NUNCA responda em inglês
+3. Use tom de voz natural e acolhedor
+4. Seja breve e direta
+5. Fale como uma pessoa real, não como IA
+6. NUNCA inclua markdown ou formatação
+7. NUNCA diga "Embracing" ou palavras em inglês`, instructions),
+					},
 				},
 			},
 			"tools": tools,
 		},
 	}
 
-	log.Printf("📤 Enviando Setup para Gemini (Voice: Aoede, Lang: pt-BR)")
+	log.Printf("📤 Enviando Setup para Gemini...")
+	log.Printf("🗣️ Voice: Aoede | Language: pt-BR")
 
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -196,28 +192,25 @@ func (c *Client) SendSetup(instructions string, tools []interface{}) error {
 		return fmt.Errorf("failed to send setup: %w", err)
 	}
 
-	log.Printf("✅ Setup enviado com sucesso")
+	log.Printf("✅ Setup enviado")
 	return nil
 }
 
-// SendAudio envia áudio para o canal de processamento (não-bloqueante)
 func (c *Client) SendAudio(audioData []byte) error {
 	if len(audioData) == 0 {
 		return nil
 	}
 
-	// Enviar para canal (não bloqueia se buffer estiver cheio)
 	select {
 	case c.audioChan <- audioData:
 		// OK
 	default:
-		log.Printf("⚠️ Canal de áudio cheio, descartando chunk de %d bytes", len(audioData))
+		log.Printf("⚠️ Canal cheio, descartando chunk")
 	}
 
 	return nil
 }
 
-// sendAudioInternal envia áudio diretamente para Gemini
 func (c *Client) sendAudioInternal(audioData []byte) error {
 	log.Printf("🎤 Enviando %d bytes para Gemini", len(audioData))
 
@@ -239,13 +232,12 @@ func (c *Client) sendAudioInternal(audioData []byte) error {
 	c.mu.Unlock()
 
 	if err != nil {
-		log.Printf("❌ Erro ao enviar áudio: %v", err)
-
-		// Liberar flag de processamento
+		log.Printf("❌ Erro ao enviar: %v", err)
+		
 		c.processingMu.Lock()
 		c.isProcessing = false
 		c.processingMu.Unlock()
-
+		
 		return err
 	}
 
@@ -256,8 +248,7 @@ func (c *Client) sendAudioInternal(audioData []byte) error {
 func (c *Client) ReadResponse() (map[string]interface{}, error) {
 	var response map[string]interface{}
 	err := c.conn.ReadJSON(&response)
-
-	// Liberar flag de processamento quando receber resposta
+	
 	c.processingMu.Lock()
 	c.isProcessing = false
 	c.processingMu.Unlock()
@@ -269,15 +260,22 @@ func (c *Client) ReadResponse() (map[string]interface{}, error) {
 
 	log.Printf("📥 Resposta recebida do Gemini")
 
-	// Log de transcriação se houver
+	// Log de transcrições
 	if serverContent, ok := response["serverContent"].(map[string]interface{}); ok {
-		// Transcriação do usuário
+		// Transcrição do usuário
 		if userContent, ok := serverContent["userContent"].(map[string]interface{}); ok {
 			if parts, ok := userContent["parts"].([]interface{}); ok {
 				for _, part := range parts {
 					if partMap, ok := part.(map[string]interface{}); ok {
 						if text, ok := partMap["text"].(string); ok && text != "" {
 							log.Printf("🎤 USUÁRIO: \"%s\"", text)
+							
+							// ============================================================
+							// VERIFICAÇÃO: Se EVA responder em inglês, alertar!
+							// ============================================================
+							if containsEnglishMarkers(text) {
+								log.Printf("⚠️⚠️⚠️ AVISO: Resposta contém inglês! Verificar prompt!")
+							}
 						}
 					}
 				}
@@ -290,7 +288,16 @@ func (c *Client) ReadResponse() (map[string]interface{}, error) {
 				for _, part := range parts {
 					if partMap, ok := part.(map[string]interface{}); ok {
 						if text, ok := partMap["text"].(string); ok && text != "" {
-							log.Printf("🗣️ EVA: \"%s\"", text)
+							// ============================================================
+							// FILTRAR: Não logar se for só markdown/formatação
+							// ============================================================
+							if !isMarkdownOnly(text) {
+								log.Printf("🗣️ EVA: \"%s\"", text)
+							}
+							
+							if containsEnglishMarkers(text) {
+								log.Printf("🚨🚨🚨 CRÍTICO: EVA respondeu em INGLÊS!")
+							}
 						}
 					}
 				}
@@ -301,12 +308,37 @@ func (c *Client) ReadResponse() (map[string]interface{}, error) {
 	return response, nil
 }
 
+// containsEnglishMarkers detecta se texto contém palavras em inglês comuns
+func containsEnglishMarkers(text string) bool {
+	englishWords := []string{
+		"Embracing", "User", "Interaction", "I've", "I'm",
+		"Offering", "welcome", "registered", "greeting",
+	}
+	
+	for _, word := range englishWords {
+		if contains(text, word) {
+			return true
+		}
+	}
+	return false
+}
+
+// isMarkdownOnly verifica se é só formatação markdown
+func isMarkdownOnly(text string) bool {
+	return contains(text, "**") && len(text) < 100
+}
+
+func contains(text, substr string) bool {
+	return len(text) >= len(substr) && 
+		   (text[:len(substr)] == substr || 
+		    contains(text[1:], substr))
+}
+
 func (c *Client) Close() error {
 	log.Printf("🔌 Fechando Gemini Client...")
-
+	
 	close(c.stopChan)
-
-	// Flush final do buffer
+	
 	c.bufferMu.Lock()
 	if len(c.audioBuffer) > 0 {
 		log.Printf("📤 Enviando %d bytes finais...", len(c.audioBuffer))
@@ -317,9 +349,9 @@ func (c *Client) Close() error {
 	if c.conn != nil {
 		err := c.conn.Close()
 		if err != nil {
-			log.Printf("⚠️ Erro ao fechar conexão: %v", err)
+			log.Printf("⚠️ Erro ao fechar: %v", err)
 		} else {
-			log.Printf("✅ Conexão Gemini fechada")
+			log.Printf("✅ Conexão fechada")
 		}
 		return err
 	}
