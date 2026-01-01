@@ -114,7 +114,9 @@ func (c *Client) SendAudio(audioData []byte) error {
 		"realtime_input": map[string]interface{}{
 			"media_chunks": []map[string]string{
 				{
-					"mime_type": "audio/pcm",
+					// CORREÇÃO CRÍTICA: Adicionar rate ao MIME type
+					// Baseado no exemplo JavaScript que funciona
+					"mime_type": "audio/pcm;rate=16000",
 					"data":      encoded,
 				},
 			},
@@ -122,7 +124,7 @@ func (c *Client) SendAudio(audioData []byte) error {
 	}
 
 	log.Printf("📤 Enviando JSON para Gemini WebSocket...")
-	log.Printf("📋 Payload structure: realtime_input.media_chunks[0].mime_type = audio/pcm")
+	log.Printf("📋 Payload structure: realtime_input.media_chunks[0].mime_type = audio/pcm;rate=16000")
 
 	c.mu.Lock()
 	defer c.mu.Unlock()
