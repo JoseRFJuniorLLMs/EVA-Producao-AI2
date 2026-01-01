@@ -141,9 +141,6 @@ func (c *Client) flushBuffer() {
 }
 
 func (c *Client) SendSetup(instructions string, tools []interface{}) error {
-	// ============================================================
-	// CORREÇÃO CRÍTICA: Forçar resposta em PORTUGUÊS
-	// ============================================================
 	setupMsg := map[string]interface{}{
 		"setup": map[string]interface{}{
 			"model": fmt.Sprintf("models/%s", c.cfg.ModelID),
@@ -161,22 +158,10 @@ func (c *Client) SendSetup(instructions string, tools []interface{}) error {
 			},
 			"system_instruction": map[string]interface{}{
 				"parts": []map[string]string{
-					{
-						// CORREÇÃO: Instruções mais explícitas
-						"text": fmt.Sprintf(`%s
-
-REGRAS OBRIGATÓRIAS:
-1. Responda SEMPRE em português brasileiro
-2. NUNCA responda em inglês
-3. Use tom de voz natural e acolhedor
-4. Seja breve e direta
-5. Fale como uma pessoa real, não como IA
-6. NUNCA inclua markdown ou formatação
-7. NUNCA diga "Embracing" ou palavras em inglês`, instructions),
-					},
+					{"text": instructions},
 				},
 			},
-			"tools": tools,
+			"tools": nil, // TEMPORARIAMENTE SEM TOOLS
 		},
 	}
 
