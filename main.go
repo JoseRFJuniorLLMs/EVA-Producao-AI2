@@ -172,7 +172,7 @@ func (s *SignalingServer) HandleWebSocket(w http.ResponseWriter, r *http.Request
 	addServerLog(fmt.Sprintf("📍 URL: %s", r.URL.String()))
 	addServerLog(fmt.Sprintf("📍 Path: %s", r.URL.Path))
 	addServerLog(fmt.Sprintf("📍 Remote Address: %s", r.RemoteAddr))
-	addServerLog(fmt.Sprintf("� User-Agent: %s", r.UserAgent()))
+	addServerLog(fmt.Sprintf(" User-Agent: %s", r.UserAgent()))
 	addServerLog(fmt.Sprintf("📍 Host: %s", r.Host))
 
 	// Log de todos os headers
