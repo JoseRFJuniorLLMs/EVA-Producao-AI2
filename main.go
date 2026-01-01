@@ -108,7 +108,10 @@ func main() {
 	log.SetOutput(logWriter{})
 
 	startTime = time.Now()
-	addServerLog("🚀 Iniciando Servidor EVA-Mind Completo...(MASSIVO)")
+	addServerLog("🚀🚀🚀 SERVIDOR EVA-Mind COM LOGS MASSIVOS ULTRA VERBOSE v2.0 🚀🚀🚀")
+	addServerLog("📊 MODO: LOGGING EXAUSTIVO ATIVADO - Todos os bytes serão logados!")
+	addServerLog("🔍 Versão: ULTRA-VERBOSE-2026-01-01")
+	addServerLog("⚡ ATENÇÃO: Esta versão loga TUDO - áudio binário, transcrições, hex dumps!")
 
 	cfg, err := config.Load()
 	if err != nil {
@@ -155,6 +158,8 @@ func main() {
 	}
 
 	addServerLog(fmt.Sprintf("✅ Servidor pronto na porta %s", port))
+	addServerLog("🎯 LOGS MASSIVOS ATIVADOS - Aguardando conexões para logar TUDO!")
+	addServerLog("=" + "="*70)
 	log.Fatal(http.ListenAndServe(":"+port, corsMiddleware(router)))
 }
 
