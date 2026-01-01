@@ -184,7 +184,7 @@ func (s *SignalingServer) HandleWebSocket(w http.ResponseWriter, r *http.Request
 	}
 	addServerLog("🌐 ========================================")
 
-	addServerLog(fmt.Sprintf("�� Nova conexão WebSocket de %s", r.RemoteAddr))
+	addServerLog(fmt.Sprintf("📍 Nova conexão WebSocket de %s", r.RemoteAddr))
 	addServerLog(fmt.Sprintf("📍 Path: %s | User-Agent: %s", r.URL.Path, r.UserAgent()))
 
 	addServerLog("🔄 Tentando fazer upgrade para WebSocket...")

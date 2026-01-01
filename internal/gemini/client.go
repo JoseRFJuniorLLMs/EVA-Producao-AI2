@@ -56,21 +56,7 @@ func (c *Client) SendSetup(instructions string, tools []interface{}) error {
 							"voice_name": "Aoede",
 						},
 					},
-					// Detecção automática de início/fim de fala
-					"voice_activity_detection_config": map[string]interface{}{
-						"start_threshold": 0.5, // Sensibilidade de início (0.0-1.0)
-						"end_threshold":   0.5, // Sensibilidade de fim (0.0-1.0)
-						"enabled":         true,
-					},
 				},
-				// IA proativa, inicia conversas
-				"proactivity": map[string]bool{
-					"proactive_audio": true,
-				},
-				// Habilita transcrição de texto do áudio
-				"output_audio_transcription": map[string]interface{}{},
-				// Ativa diálogo afetivo/emocional
-				"enable_affective_dialog": true,
 			},
 			"system_instruction": map[string]interface{}{
 				"parts": []map[string]string{
