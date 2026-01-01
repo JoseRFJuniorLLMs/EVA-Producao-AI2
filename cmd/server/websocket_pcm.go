@@ -162,6 +162,8 @@ func (h *PCMWebSocketHandler) handleClientSend(client *PCMClient) {
 				return
 			}
 
+			log.Printf("📤 Enviando áudio binário via WebSocket: %d bytes", len(audioData))
+
 			client.mu.Lock()
 			err := client.Conn.WriteMessage(websocket.BinaryMessage, audioData)
 			client.mu.Unlock()
@@ -170,6 +172,8 @@ func (h *PCMWebSocketHandler) handleClientSend(client *PCMClient) {
 				log.Printf("❌ Erro ao enviar áudio binário: %v", err)
 				return
 			}
+
+			log.Printf("✅ Áudio binário enviado com sucesso via WebSocket")
 
 		case <-ticker.C:
 			client.mu.Lock()
@@ -421,19 +425,29 @@ func (h *PCMWebSocketHandler) handleGeminiResponse(client *PCMClient, response m
 			mimeType, _ := inlineData["mimeType"].(string)
 			data, hasData := inlineData["data"].(string)
 
+			log.Printf("🎵 Gemini enviou inlineData - mimeType: %s, hasData: %v", mimeType, hasData)
+
 			if hasData && strings.HasPrefix(mimeType, "audio/pcm") {
+				log.Printf("✅ CONFIRMADO: Áudio PCM recebido do Gemini")
+
 				audioData, err := base64.StdEncoding.DecodeString(data)
 				if err != nil {
 					log.Printf("❌ Erro decode base64 áudio: %v", err)
 					continue
 				}
 
+				log.Printf("📦 Áudio decodificado: %d bytes", len(audioData))
+				log.Printf("🔊 Enviando para cliente via SendCh...")
+
 				// Envia o chunk de áudio para o canal de saída do cliente
 				select {
 				case client.SendCh <- audioData:
+					log.Printf("✅ Áudio enviado para SendCh com sucesso (%d bytes)", len(audioData))
 				case <-time.After(1 * time.Second):
 					log.Printf("⚠️ Timeout enviando áudio para SendCh")
 				}
+			} else {
+				log.Printf("⚠️ inlineData não é áudio PCM ou está vazio")
 			}
 		}
 

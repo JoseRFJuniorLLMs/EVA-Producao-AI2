@@ -3,8 +3,10 @@ package gemini
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"eva-mind/internal/config"
 	"fmt"
+	"log"
 	"sync"
 	"time"
 
@@ -23,10 +25,19 @@ func NewClient(ctx context.Context, cfg *config.Config) (*Client, error) {
 	}
 
 	url := fmt.Sprintf("wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=%s", cfg.GoogleAPIKey)
-	conn, _, err := dialer.DialContext(ctx, url, nil)
+	
+	log.Printf("🔌 Conectando ao Gemini WebSocket...")
+	log.Printf("📍 URL: wss://generativelanguage.googleapis.com/ws/...")
+	log.Printf("🤖 Model: %s", cfg.ModelID)
+	
+	conn, resp, err := dialer.DialContext(ctx, url, nil)
 	if err != nil {
+		log.Printf("❌ Erro ao conectar Gemini WebSocket: %v", err)
 		return nil, err
 	}
+
+	log.Printf("✅ Gemini WebSocket conectado com sucesso")
+	log.Printf("📊 Response Status: %s", resp.Status)
 
 	return &Client{conn: conn, cfg: cfg}, nil
 }
@@ -70,13 +81,25 @@ func (c *Client) SendSetup(instructions string, tools []interface{}) error {
 		},
 	}
 
+	log.Printf("📤 Enviando Setup para Gemini...")
+	log.Printf("🎙️ Response Modalities: AUDIO")
+	log.Printf("🗣️ Voice: Aoede")
+	log.Printf("🎯 Proactive Audio: ENABLED")
+	log.Printf("📝 Instructions length: %d chars", len(instructions))
+
+	// Log do JSON completo (para debug)
+	setupJSON, _ := json.MarshalIndent(setupMsg, "", "  ")
+	log.Printf("📋 Setup JSON:\n%s", string(setupJSON))
+
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	if err := c.conn.WriteJSON(setupMsg); err != nil {
+		log.Printf("❌ Erro ao enviar setup: %v", err)
 		return fmt.Errorf("failed to send setup: %w", err)
 	}
 
+	log.Printf("✅ Setup enviado com sucesso para Gemini")
 	return nil
 }
 
@@ -98,6 +121,11 @@ func (c *Client) SendAudio(audioData []byte) error {
 		},
 	}
 
+	// Log apenas a cada 50 pacotes para não poluir
+	if len(audioData)%50 == 0 {
+		log.Printf("🎤 Enviando áudio para Gemini: %d bytes (base64: %d chars)", len(audioData), len(encoded))
+	}
+
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return c.conn.WriteJSON(msg)
@@ -107,14 +135,78 @@ func (c *Client) ReadResponse() (map[string]interface{}, error) {
 	var response map[string]interface{}
 	err := c.conn.ReadJSON(&response)
 	if err != nil {
+		log.Printf("❌ Erro ao ler resposta do Gemini: %v", err)
 		return nil, err
 	}
+
+	// Log detalhado da resposta
+	log.Printf("📥 ========================================")
+	log.Printf("📥 RESPOSTA RECEBIDA DO GEMINI")
+	
+	// Verificar tipo de resposta
+	if setupComplete, ok := response["setupComplete"].(bool); ok && setupComplete {
+		log.Printf("✅ Setup Complete confirmado pelo Gemini")
+	}
+
+	if serverContent, ok := response["serverContent"].(map[string]interface{}); ok {
+		log.Printf("📦 serverContent detectado")
+		
+		if modelTurn, ok := serverContent["modelTurn"].(map[string]interface{}); ok {
+			log.Printf("🤖 modelTurn detectado")
+			
+			if parts, ok := modelTurn["parts"].([]interface{}); ok {
+				log.Printf("📋 Parts count: %d", len(parts))
+				
+				for i, part := range parts {
+					partMap, _ := part.(map[string]interface{})
+					
+					// Verificar se tem áudio
+					if inlineData, ok := partMap["inlineData"].(map[string]interface{}); ok {
+						mimeType, _ := inlineData["mimeType"].(string)
+						data, hasData := inlineData["data"].(string)
+						
+						log.Printf("🎵 Part %d: inlineData encontrado", i)
+						log.Printf("   - mimeType: %s", mimeType)
+						log.Printf("   - hasData: %v", hasData)
+						
+						if hasData {
+							log.Printf("   - data length (base64): %d chars", len(data))
+						}
+					}
+					
+					// Verificar se tem texto
+					if text, ok := partMap["text"].(string); ok {
+						log.Printf("📝 Part %d: text encontrado: %s", i, text)
+					}
+					
+					// Verificar se tem function call
+					if fnCall, ok := partMap["functionCall"].(map[string]interface{}); ok {
+						fnName, _ := fnCall["name"].(string)
+						log.Printf("🛠️ Part %d: functionCall: %s", i, fnName)
+					}
+				}
+			}
+		}
+	}
+	
+	// Log do JSON completo para debug extremo
+	responseJSON, _ := json.MarshalIndent(response, "", "  ")
+	log.Printf("📋 Response JSON completo:\n%s", string(responseJSON))
+	log.Printf("📥 ========================================")
+
 	return response, nil
 }
 
 func (c *Client) Close() error {
+	log.Printf("🔌 Fechando conexão Gemini WebSocket...")
 	if c.conn != nil {
-		return c.conn.Close()
+		err := c.conn.Close()
+		if err != nil {
+			log.Printf("⚠️ Erro ao fechar conexão: %v", err)
+		} else {
+			log.Printf("✅ Conexão Gemini fechada")
+		}
+		return err
 	}
 	return nil
 }

@@ -73,7 +73,7 @@ func Load() (*Config, error) {
 
 		// Google/Gemini
 		GoogleAPIKey:        os.Getenv("GOOGLE_API_KEY"),
-		ModelID:             getEnvWithDefault("MODEL_ID", "gemini-2.0-flash-exp"),
+		ModelID:             getEnvWithDefault("MODEL_ID", "gemini-2.5-flash-native-audio-preview-12-2025"),
 		GeminiAnalysisModel: getEnvWithDefault("GEMINI_ANALYSIS_MODEL", "gemini-2.5-flash"),
 
 		// Scheduler
