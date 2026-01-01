@@ -149,38 +149,70 @@ func (h *PCMWebSocketHandler) handleClientMessages(client *PCMClient) {
 }
 
 func (h *PCMWebSocketHandler) handleClientSend(client *PCMClient) {
+	log.Printf("📡 ========================================")
+	log.Printf("📡 handleClientSend INICIADO")
+	log.Printf("📡 CPF: %s (se disponível)", client.CPF)
+	log.Printf("📡 ========================================")
+
+	defer func() {
+		log.Printf("🛑 handleClientSend FINALIZADO para CPF: %s", client.CPF)
+	}()
+
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
+
+	audioPacketCount := 0
 
 	for {
 		select {
 		case <-client.ctx.Done():
+			log.Printf("🔴 Context cancelado em handleClientSend (CPF: %s)", client.CPF)
 			return
 
 		case audioData, ok := <-client.SendCh:
 			if !ok {
+				log.Printf("🔴 SendCh fechado (CPF: %s)", client.CPF)
 				return
 			}
 
-			log.Printf("📤 Enviando áudio binário via WebSocket: %d bytes", len(audioData))
+			audioPacketCount++
+
+			log.Printf("📤 ========================================")
+			log.Printf("📤 RECEBIDO ÁUDIO DO SendCh (Pacote #%d)", audioPacketCount)
+			log.Printf("📤 CPF: %s", client.CPF)
+			log.Printf("📤 Tamanho: %d bytes", len(audioData))
+			log.Printf("📤 Tentando enviar via WebSocket...")
+			log.Printf("📤 ========================================")
 
 			client.mu.Lock()
 			err := client.Conn.WriteMessage(websocket.BinaryMessage, audioData)
 			client.mu.Unlock()
 
 			if err != nil {
-				log.Printf("❌ Erro ao enviar áudio binário: %v", err)
+				log.Printf("❌ ========================================")
+				log.Printf("❌ ERRO ao enviar áudio via WebSocket!")
+				log.Printf("❌ CPF: %s", client.CPF)
+				log.Printf("❌ Pacote #%d", audioPacketCount)
+				log.Printf("❌ Erro: %v", err)
+				log.Printf("❌ ========================================")
 				return
 			}
 
-			log.Printf("✅ Áudio binário enviado com sucesso via WebSocket")
+			log.Printf("✅ ========================================")
+			log.Printf("✅ ÁUDIO ENVIADO VIA WEBSOCKET COM SUCESSO!")
+			log.Printf("✅ CPF: %s", client.CPF)
+			log.Printf("✅ Pacote #%d", audioPacketCount)
+			log.Printf("✅ Bytes enviados: %d", len(audioData))
+			log.Printf("✅ ========================================")
 
 		case <-ticker.C:
+			log.Printf("🏓 Enviando ping para CPF: %s", client.CPF)
 			client.mu.Lock()
 			err := client.Conn.WriteMessage(websocket.PingMessage, nil)
 			client.mu.Unlock()
 
 			if err != nil {
+				log.Printf("❌ Erro ao enviar ping (CPF: %s): %v", client.CPF, err)
 				return
 			}
 		}
@@ -368,94 +400,232 @@ func (h *PCMWebSocketHandler) buildInstructionsFromDB(idosoID int64) (string, er
 }
 
 func (h *PCMWebSocketHandler) listenGeminiResponses(client *PCMClient) {
+	log.Printf("🎧 ========================================")
+	log.Printf("🎧 INICIANDO listenGeminiResponses")
+	log.Printf("🎧 CPF: %s", client.CPF)
+	log.Printf("🎧 IdosoID: %d", client.IdosoID)
+	log.Printf("🎧 GeminiClient existe: %v", client.GeminiClient != nil)
+	log.Printf("🎧 Client active: %v", client.active)
+	log.Printf("🎧 Context existe: %v", client.ctx != nil)
+	log.Printf("🎧 ========================================")
+
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("💥 ========================================")
+			log.Printf("💥 PANIC DETECTADO em listenGeminiResponses!")
+			log.Printf("💥 CPF: %s", client.CPF)
+			log.Printf("💥 Panic: %v", r)
+			log.Printf("💥 ========================================")
+		}
+		log.Printf("🛑 listenGeminiResponses FINALIZADO para CPF: %s", client.CPF)
+	}()
+
+	iterationCount := 0
+	lastLogTime := time.Now()
+
 	for {
 		select {
 		case <-client.ctx.Done():
+			log.Printf("🔴 Context cancelado para CPF %s, saindo do loop", client.CPF)
 			return
 		default:
 			if !client.active {
+				log.Printf("🔴 Client não está ativo para CPF %s, saindo do loop", client.CPF)
 				return
 			}
 
+			iterationCount++
+
+			// Log a cada 10 iterações OU a cada 5 segundos
+			now := time.Now()
+			shouldLog := (iterationCount%10 == 1) || (now.Sub(lastLogTime) > 5*time.Second)
+
+			if shouldLog {
+				log.Printf("🔄 ========================================")
+				log.Printf("🔄 listenGeminiResponses ITERAÇÃO #%d", iterationCount)
+				log.Printf("🔄 CPF: %s", client.CPF)
+				log.Printf("🔄 Aguardando resposta do Gemini...")
+				log.Printf("🔄 ========================================")
+				lastLogTime = now
+			}
+
+			log.Printf("📞 [Iter %d] Chamando ReadResponse()...", iterationCount)
 			response, err := client.GeminiClient.ReadResponse()
+
 			if err != nil {
+				log.Printf("⚠️ ========================================")
+				log.Printf("⚠️ ERRO em ReadResponse (Iteração #%d)", iterationCount)
+				log.Printf("⚠️ CPF: %s", client.CPF)
+				log.Printf("⚠️ Erro: %v", err)
+				log.Printf("⚠️ Tipo do erro: %T", err)
+
 				if client.ctx.Err() != nil {
+					log.Printf("🔴 Context error detectado: %v", client.ctx.Err())
+					log.Printf("⚠️ ========================================")
 					return
 				}
+
+				log.Printf("⚠️ Aplicando backoff de 100ms...")
+				log.Printf("⚠️ ========================================")
+
 				// Pequeno backoff para não fritar a CPU em erro de leitura
 				time.Sleep(100 * time.Millisecond)
 				continue
 			}
 
+			log.Printf("✅ ========================================")
+			log.Printf("✅ RESPOSTA RECEBIDA DO GEMINI (Iteração #%d)", iterationCount)
+			log.Printf("✅ CPF: %s", client.CPF)
+			log.Printf("✅ Response não é nil: %v", response != nil)
+			if response != nil {
+				log.Printf("✅ Response keys: %v", getMapKeys(response))
+			}
+			log.Printf("✅ Chamando handleGeminiResponse()...")
+			log.Printf("✅ ========================================")
+
 			h.handleGeminiResponse(client, response)
+
+			log.Printf("✅ handleGeminiResponse() CONCLUÍDO (Iteração #%d)", iterationCount)
 		}
 	}
 }
 
+// Helper function para logar as chaves de um map
+func getMapKeys(m map[string]interface{}) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	return keys
+}
+
 func (h *PCMWebSocketHandler) handleGeminiResponse(client *PCMClient, response map[string]interface{}) {
+	log.Printf("🔍 ========================================")
+	log.Printf("🔍 handleGeminiResponse INICIADO")
+	log.Printf("🔍 CPF: %s", client.CPF)
+	log.Printf("🔍 Response keys: %v", getMapKeys(response))
+	log.Printf("🔍 ========================================")
+
 	// Ignorar mensagens puramente de controle de setup
 	if setupComplete, ok := response["setupComplete"].(bool); ok && setupComplete {
-		log.Printf("✅ Gemini Setup Concluído via WebSocket")
+		log.Printf("✅ Gemini Setup Concluído via WebSocket (CPF: %s)", client.CPF)
 		return
 	}
 
 	serverContent, ok := response["serverContent"].(map[string]interface{})
 	if !ok {
+		log.Printf("⚠️ Response NÃO contém 'serverContent' (CPF: %s)", client.CPF)
 		return
 	}
+	log.Printf("✅ serverContent encontrado (CPF: %s)", client.CPF)
 
 	modelTurn, ok := serverContent["modelTurn"].(map[string]interface{})
 	if !ok {
+		log.Printf("⚠️ serverContent NÃO contém 'modelTurn' (CPF: %s)", client.CPF)
 		return
 	}
+	log.Printf("✅ modelTurn encontrado (CPF: %s)", client.CPF)
 
 	parts, ok := modelTurn["parts"].([]interface{})
 	if !ok {
+		log.Printf("⚠️ modelTurn NÃO contém 'parts' (CPF: %s)", client.CPF)
 		return
 	}
+	log.Printf("✅ parts encontrado - Total: %d parts (CPF: %s)", len(parts), client.CPF)
 
-	for _, part := range parts {
+	for i, part := range parts {
+		log.Printf("🔍 Processando part #%d/%d (CPF: %s)", i+1, len(parts), client.CPF)
+
 		partMap, ok := part.(map[string]interface{})
 		if !ok {
+			log.Printf("⚠️ Part #%d não é um map (CPF: %s)", i+1, client.CPF)
 			continue
 		}
 
+		log.Printf("🔍 Part #%d keys: %v (CPF: %s)", i+1, getMapKeys(partMap), client.CPF)
+
 		// 1. Processamento de Áudio PCM vindo da IA
 		if inlineData, ok := partMap["inlineData"].(map[string]interface{}); ok {
+			log.Printf("🎵 ========================================")
+			log.Printf("🎵 INLINE DATA DETECTADO (Part #%d)", i+1)
+			log.Printf("🎵 CPF: %s", client.CPF)
+
 			mimeType, _ := inlineData["mimeType"].(string)
 			data, hasData := inlineData["data"].(string)
 
-			log.Printf("🎵 Gemini enviou inlineData - mimeType: %s, hasData: %v", mimeType, hasData)
+			log.Printf("🎵 mimeType: %s", mimeType)
+			log.Printf("🎵 hasData: %v", hasData)
+
+			if hasData {
+				log.Printf("🎵 data length (base64): %d chars", len(data))
+			}
 
 			if hasData && strings.HasPrefix(mimeType, "audio/pcm") {
-				log.Printf("✅ CONFIRMADO: Áudio PCM recebido do Gemini")
+				log.Printf("✅ ========================================")
+				log.Printf("✅ ÁUDIO PCM CONFIRMADO!")
+				log.Printf("✅ CPF: %s", client.CPF)
+				log.Printf("✅ Iniciando decode base64...")
+				log.Printf("✅ ========================================")
 
 				audioData, err := base64.StdEncoding.DecodeString(data)
 				if err != nil {
-					log.Printf("❌ Erro decode base64 áudio: %v", err)
+					log.Printf("❌ ========================================")
+					log.Printf("❌ ERRO ao decodificar base64!")
+					log.Printf("❌ CPF: %s", client.CPF)
+					log.Printf("❌ Erro: %v", err)
+					log.Printf("❌ ========================================")
 					continue
 				}
 
-				log.Printf("📦 Áudio decodificado: %d bytes", len(audioData))
-				log.Printf("🔊 Enviando para cliente via SendCh...")
+				log.Printf("📦 ========================================")
+				log.Printf("📦 ÁUDIO DECODIFICADO COM SUCESSO!")
+				log.Printf("📦 CPF: %s", client.CPF)
+				log.Printf("📦 Tamanho: %d bytes", len(audioData))
+				log.Printf("📦 Primeiros 10 bytes: %v", audioData[:min(10, len(audioData))])
+				log.Printf("📦 ========================================")
+
+				log.Printf("🔊 Tentando enviar para SendCh...")
+				log.Printf("🔊 SendCh buffer capacity: %d", cap(client.SendCh))
+				log.Printf("🔊 SendCh buffer length: %d", len(client.SendCh))
 
 				// Envia o chunk de áudio para o canal de saída do cliente
 				select {
 				case client.SendCh <- audioData:
-					log.Printf("✅ Áudio enviado para SendCh com sucesso (%d bytes)", len(audioData))
+					log.Printf("✅ ========================================")
+					log.Printf("✅ ÁUDIO ENVIADO PARA SendCh COM SUCESSO!")
+					log.Printf("✅ CPF: %s", client.CPF)
+					log.Printf("✅ Bytes enviados: %d", len(audioData))
+					log.Printf("✅ ========================================")
 				case <-time.After(1 * time.Second):
-					log.Printf("⚠️ Timeout enviando áudio para SendCh")
+					log.Printf("⚠️ ========================================")
+					log.Printf("⚠️ TIMEOUT ao enviar para SendCh!")
+					log.Printf("⚠️ CPF: %s", client.CPF)
+					log.Printf("⚠️ O canal pode estar bloqueado ou cheio")
+					log.Printf("⚠️ ========================================")
 				}
 			} else {
-				log.Printf("⚠️ inlineData não é áudio PCM ou está vazio")
+				log.Printf("⚠️ inlineData NÃO é áudio PCM ou está vazio (CPF: %s)", client.CPF)
+				log.Printf("⚠️ mimeType: %s, hasData: %v", mimeType, hasData)
 			}
+			log.Printf("🎵 ========================================")
 		}
 
 		// 2. Processamento de Chamada de Ferramentas (Function Calling)
 		if fnCall, ok := partMap["functionCall"].(map[string]interface{}); ok {
+			fnName, _ := fnCall["name"].(string)
+			log.Printf("🛠️ Function Call detectado: %s (CPF: %s)", fnName, client.CPF)
 			h.executeTool(client, fnCall)
 		}
 	}
+
+	log.Printf("🔍 handleGeminiResponse CONCLUÍDO (CPF: %s)", client.CPF)
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 func (h *PCMWebSocketHandler) executeTool(client *PCMClient, fnCall map[string]interface{}) {

@@ -25,11 +25,11 @@ func NewClient(ctx context.Context, cfg *config.Config) (*Client, error) {
 	}
 
 	url := fmt.Sprintf("wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=%s", cfg.GoogleAPIKey)
-	
+
 	log.Printf("🔌 Conectando ao Gemini WebSocket...")
 	log.Printf("📍 URL: wss://generativelanguage.googleapis.com/ws/...")
 	log.Printf("🤖 Model: %s", cfg.ModelID)
-	
+
 	conn, resp, err := dialer.DialContext(ctx, url, nil)
 	if err != nil {
 		log.Printf("❌ Erro ao conectar Gemini WebSocket: %v", err)
@@ -142,7 +142,7 @@ func (c *Client) ReadResponse() (map[string]interface{}, error) {
 	// Log detalhado da resposta
 	log.Printf("📥 ========================================")
 	log.Printf("📥 RESPOSTA RECEBIDA DO GEMINI")
-	
+
 	// Verificar tipo de resposta
 	if setupComplete, ok := response["setupComplete"].(bool); ok && setupComplete {
 		log.Printf("✅ Setup Complete confirmado pelo Gemini")
@@ -150,45 +150,96 @@ func (c *Client) ReadResponse() (map[string]interface{}, error) {
 
 	if serverContent, ok := response["serverContent"].(map[string]interface{}); ok {
 		log.Printf("📦 serverContent detectado")
-		
+
+		// ============================================================
+		// NOVO: CAPTURAR TRANSCRIÇÃO DO USUÁRIO (Input Audio)
+		// ============================================================
+		if turnComplete, ok := serverContent["turnComplete"].(bool); ok && turnComplete {
+			log.Printf("🔄 Turn Complete detectado")
+		}
+
+		// Verificar se há transcrição do áudio de ENTRADA (usuário falando)
+		if interrupted, ok := serverContent["interrupted"].(bool); ok {
+			log.Printf("⚠️ Interrupted: %v", interrupted)
+		}
+
+		// Capturar transcrição do usuário
+		if grounding, ok := serverContent["groundingMetadata"].(map[string]interface{}); ok {
+			log.Printf("🔍 Grounding Metadata detectado: %v", grounding)
+		}
+
 		if modelTurn, ok := serverContent["modelTurn"].(map[string]interface{}); ok {
 			log.Printf("🤖 modelTurn detectado")
-			
+
 			if parts, ok := modelTurn["parts"].([]interface{}); ok {
 				log.Printf("📋 Parts count: %d", len(parts))
-				
+
 				for i, part := range parts {
 					partMap, _ := part.(map[string]interface{})
-					
+
+					// ============================================================
+					// CAPTURAR TEXTO/TRANSCRIÇÃO DA EVA
+					// ============================================================
+					if text, ok := partMap["text"].(string); ok {
+						log.Printf("🗣️ ========================================")
+						log.Printf("🗣️ EVA DISSE (Part %d):", i)
+						log.Printf("🗣️ \"%s\"", text)
+						log.Printf("🗣️ ========================================")
+					}
+
 					// Verificar se tem áudio
 					if inlineData, ok := partMap["inlineData"].(map[string]interface{}); ok {
 						mimeType, _ := inlineData["mimeType"].(string)
 						data, hasData := inlineData["data"].(string)
-						
+
 						log.Printf("🎵 Part %d: inlineData encontrado", i)
 						log.Printf("   - mimeType: %s", mimeType)
 						log.Printf("   - hasData: %v", hasData)
-						
+
 						if hasData {
 							log.Printf("   - data length (base64): %d chars", len(data))
 						}
 					}
-					
-					// Verificar se tem texto
-					if text, ok := partMap["text"].(string); ok {
-						log.Printf("📝 Part %d: text encontrado: %s", i, text)
-					}
-					
+
 					// Verificar se tem function call
 					if fnCall, ok := partMap["functionCall"].(map[string]interface{}); ok {
 						fnName, _ := fnCall["name"].(string)
-						log.Printf("🛠️ Part %d: functionCall: %s", i, fnName)
+						log.Printf("�️ Part %d: functionCall: %s", i, fnName)
+					}
+				}
+			}
+		}
+
+		// ============================================================
+		// NOVO: CAPTURAR TRANSCRIÇÃO DO ÁUDIO DO USUÁRIO
+		// ============================================================
+		if userContent, ok := serverContent["userContent"].(map[string]interface{}); ok {
+			log.Printf("👤 userContent detectado")
+
+			if parts, ok := userContent["parts"].([]interface{}); ok {
+				log.Printf("👤 User Parts count: %d", len(parts))
+
+				for i, part := range parts {
+					partMap, _ := part.(map[string]interface{})
+
+					// TRANSCRIÇÃO DO QUE O USUÁRIO FALOU
+					if text, ok := partMap["text"].(string); ok {
+						log.Printf("🎤 ========================================")
+						log.Printf("🎤 USUÁRIO DISSE (Part %d):", i)
+						log.Printf("🎤 \"%s\"", text)
+						log.Printf("🎤 ========================================")
+					}
+
+					// Verificar se tem inlineData (áudio do usuário)
+					if inlineData, ok := partMap["inlineData"].(map[string]interface{}); ok {
+						mimeType, _ := inlineData["mimeType"].(string)
+						log.Printf("🎤 User audio detected - mimeType: %s", mimeType)
 					}
 				}
 			}
 		}
 	}
-	
+
 	// Log do JSON completo para debug extremo
 	responseJSON, _ := json.MarshalIndent(response, "", "  ")
 	log.Printf("📋 Response JSON completo:\n%s", string(responseJSON))
