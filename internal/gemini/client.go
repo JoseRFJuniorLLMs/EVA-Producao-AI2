@@ -118,16 +118,11 @@ func (c *Client) SendAudio(audioData []byte) error {
 					"data":      encoded,
 				},
 			},
-			// Habilitar transcrição de entrada (áudio do usuário)
-			"input_audio_transcription": map[string]interface{}{
-				"enabled": true,
-			},
 		},
 	}
 
 	log.Printf("📤 Enviando JSON para Gemini WebSocket...")
 	log.Printf("📋 Payload structure: realtime_input.media_chunks[0].mime_type = audio/pcm")
-	log.Printf("📋 Payload structure: realtime_input.input_audio_transcription.enabled = true")
 
 	c.mu.Lock()
 	defer c.mu.Unlock()
