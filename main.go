@@ -68,7 +68,7 @@ func NewSignalingServer(cfg *config.Config, db *database.DB, pushService *push.F
 
 func main() {
 	startTime = time.Now()
-	log.Printf("🚀 EVA-Mind Server v3.0 - Optimized")
+	log.Printf("🚀 EVA-Mind 2026")
 
 	cfg, err := config.Load()
 	if err != nil {
