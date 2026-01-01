@@ -166,16 +166,36 @@ func main() {
 // --- WEBSOCKET ---
 
 func (s *SignalingServer) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
-	addServerLog(fmt.Sprintf("🔌 Nova conexão WebSocket de %s", r.RemoteAddr))
+	addServerLog("🌐 ========================================")
+	addServerLog("🌐 HTTP REQUEST RECEBIDO!")
+	addServerLog(fmt.Sprintf("📍 Method: %s", r.Method))
+	addServerLog(fmt.Sprintf("📍 URL: %s", r.URL.String()))
+	addServerLog(fmt.Sprintf("📍 Path: %s", r.URL.Path))
+	addServerLog(fmt.Sprintf("📍 Remote Address: %s", r.RemoteAddr))
+	addServerLog(fmt.Sprintf("� User-Agent: %s", r.UserAgent()))
+	addServerLog(fmt.Sprintf("📍 Host: %s", r.Host))
+
+	// Log de todos os headers
+	addServerLog("📋 Headers:")
+	for name, values := range r.Header {
+		for _, value := range values {
+			addServerLog(fmt.Sprintf("   %s: %s", name, value))
+		}
+	}
+	addServerLog("🌐 ========================================")
+
+	addServerLog(fmt.Sprintf("�� Nova conexão WebSocket de %s", r.RemoteAddr))
 	addServerLog(fmt.Sprintf("📍 Path: %s | User-Agent: %s", r.URL.Path, r.UserAgent()))
 
+	addServerLog("🔄 Tentando fazer upgrade para WebSocket...")
 	conn, err := s.upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		addServerLog(fmt.Sprintf("❌ Erro upgrade: %v", err))
+		addServerLog(fmt.Sprintf("❌ ERRO NO UPGRADE: %v", err))
+		addServerLog(fmt.Sprintf("❌ Tipo de erro: %T", err))
 		return
 	}
 
-	addServerLog("✅ WebSocket upgrade bem-sucedido")
+	addServerLog("✅ WebSocket upgrade bem-sucedido!")
 
 	ctx, cancel := context.WithCancel(context.Background())
 	client := &PCMClient{
