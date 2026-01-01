@@ -159,7 +159,7 @@ func main() {
 
 	addServerLog(fmt.Sprintf("✅ Servidor pronto na porta %s", port))
 	addServerLog("🎯 LOGS MASSIVOS ATIVADOS - Aguardando conexões para logar TUDO!")
-	addServerLog("=" + "="*70)
+	addServerLog("======================================================================")
 	log.Fatal(http.ListenAndServe(":"+port, corsMiddleware(router)))
 }
 
