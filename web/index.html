@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EVA Family Portal - Dashboard Completo</title>
+    <title>EVA - Assistente Cuidadora</title>
     <style>
         * {
             margin: 0;
@@ -14,43 +14,108 @@
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #fdf2f8 0%, #fce7f3 50%, #fbcfe8 100%);
-            color: #831843;
-            padding: 20px;
+            background: linear-gradient(135deg, #fce7f3 0%, #fbcfe8 50%, #f9a8d4 100%);
             min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
         }
 
         .header {
             background: linear-gradient(135deg, #ec4899 0%, #db2777 100%);
+            border-radius: 25px;
+            padding: 30px;
+            margin-bottom: 25px;
+            box-shadow: 0 10px 40px rgba(219, 39, 119, 0.3);
             color: white;
-            padding: 20px;
-            border-radius: 12px;
-            margin-bottom: 20px;
-            box-shadow: 0 8px 24px rgba(219, 39, 119, 0.3);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            text-align: center;
         }
 
         .header h1 {
-            font-size: 32px;
-            font-weight: 700;
+            font-size: 42px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        .header .tagline {
+            font-size: 18px;
+            opacity: 0.95;
+            font-weight: 500;
+        }
+
+        .card {
+            background: white;
+            border-radius: 25px;
+            padding: 35px;
+            box-shadow: 0 15px 50px rgba(236, 72, 153, 0.15);
+            margin-bottom: 25px;
+            border: 3px solid #fce7f3;
+        }
+
+        .subtitle {
+            color: #ec4899;
+            margin-bottom: 20px;
+            font-size: 16px;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .alert {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border-left: 5px solid #f59e0b;
+            padding: 18px;
+            border-radius: 15px;
+            margin-bottom: 25px;
+            box-shadow: 0 5px 15px rgba(245, 158, 11, 0.2);
+        }
+
+        .alert-title {
+            font-weight: bold;
+            color: #92400e;
+            margin-bottom: 8px;
+            font-size: 15px;
+        }
+
+        .alert-text {
+            color: #b45309;
+            font-size: 14px;
+            line-height: 1.6;
         }
 
         .status-badge {
-            background: rgba(255, 255, 255, 0.2);
-            padding: 8px 16px;
-            border-radius: 20px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
+            display: inline-block;
+            padding: 14px 28px;
+            border-radius: 25px;
+            font-weight: bold;
+            margin-bottom: 25px;
+            font-size: 16px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
         }
 
-        .status-dot {
-            width: 12px;
-            height: 12px;
-            background: #10b981;
-            border-radius: 50%;
+        .status-offline {
+            background: linear-gradient(135deg, #fecaca 0%, #fca5a5 100%);
+            color: #991b1b;
+        }
+
+        .status-connecting {
+            background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+            color: #1e40af;
+        }
+
+        .status-online {
+            background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+            color: #065f46;
+        }
+
+        .status-active {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            color: #78350f;
             animation: pulse 2s infinite;
         }
 
@@ -59,299 +124,777 @@
             0%,
             100% {
                 opacity: 1;
+                transform: scale(1);
             }
 
             50% {
-                opacity: 0.5;
+                opacity: 0.9;
+                transform: scale(1.02);
             }
         }
 
-        .logs-container {
-            background: rgba(255, 255, 255, 0.9);
-            border: 2px solid #f9a8d4;
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 8px 24px rgba(219, 39, 119, 0.2);
+        .controls {
+            display: grid;
+            gap: 15px;
+            margin-bottom: 25px;
         }
 
-        .logs-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-        }
-
-        .logs-title {
-            font-size: 24px;
+        button {
+            padding: 18px 25px;
+            border: none;
+            border-radius: 15px;
             font-weight: 700;
-            color: #831843;
-            display: flex;
-            align-items: center;
-            gap: 10px;
+            cursor: pointer;
+            font-size: 17px;
+            transition: all 0.3s;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
         }
 
-        .error-count {
-            background: #be123c;
+        #btnStart {
+            background: linear-gradient(135deg, #ec4899 0%, #db2777 100%);
             color: white;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 14px;
-            font-weight: 600;
         }
 
-        #logs {
-            max-height: 500px;
-            overflow-y: auto;
-            background: #fdf2f8;
-            border-radius: 8px;
-            padding: 15px;
+        #btnStart:hover:not(:disabled) {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 30px rgba(236, 72, 153, 0.4);
         }
 
-        .log {
-            margin-bottom: 10px;
-            padding: 12px 16px;
-            border-radius: 8px;
-            font-size: 16px;
-            line-height: 1.6;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            animation: slideIn 0.3s ease-out;
+        #btnStop {
+            background: linear-gradient(135deg, #f87171 0%, #ef4444 100%);
+            color: white;
+            display: none;
         }
 
-        @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateX(-20px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateX(0);
-            }
+        #btnStop:hover:not(:disabled) {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 30px rgba(239, 68, 68, 0.4);
         }
 
-        .log-icon {
-            font-size: 24px;
-            flex-shrink: 0;
+        button:disabled {
+            background: #fce7f3;
+            color: #f9a8d4;
+            cursor: not-allowed;
+            box-shadow: none;
         }
 
-        .info {
-            background: rgba(236, 72, 153, 0.15);
-            border-left: 5px solid #ec4899;
-            color: #831843;
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 18px;
+            margin-bottom: 25px;
         }
 
-        .warn {
-            background: rgba(245, 158, 11, 0.15);
-            border-left: 5px solid #f59e0b;
-            color: #b45309;
+        .info-item {
+            background: linear-gradient(135deg, #fdf2f8 0%, #fce7f3 100%);
+            padding: 20px;
+            border-radius: 15px;
+            border: 2px solid #fbcfe8;
+            text-align: center;
+            transition: all 0.3s;
         }
 
-        .error {
-            background: rgba(190, 18, 60, 0.15);
-            border-left: 5px solid #be123c;
-            color: #9f1239;
+        .info-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(236, 72, 153, 0.2);
+        }
+
+        .info-label {
+            font-size: 12px;
+            color: #db2777;
+            text-transform: uppercase;
             font-weight: 700;
-            font-size: 18px;
+            margin-bottom: 8px;
+            letter-spacing: 0.5px;
         }
 
-        #logs::-webkit-scrollbar {
+        .info-value {
+            font-size: 18px;
+            color: #831843;
+            font-weight: 800;
+        }
+
+        .visualizer {
+            height: 100px;
+            background: linear-gradient(135deg, #1e1e1e 0%, #2d2d2d 100%);
+            border-radius: 20px;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            padding: 0 25px;
+            margin-bottom: 25px;
+            position: relative;
+            border: 3px solid #ec4899;
+            box-shadow: 0 10px 30px rgba(236, 72, 153, 0.3);
+        }
+
+        .visualizer.active {
+            display: flex;
+        }
+
+        .visualizer.speaking {
+            border: 4px solid #4ade80;
+            box-shadow: 0 0 30px rgba(74, 222, 128, 0.6);
+            animation: glow 1.5s infinite;
+        }
+
+        @keyframes glow {
+
+            0%,
+            100% {
+                box-shadow: 0 0 30px rgba(74, 222, 128, 0.6);
+            }
+
+            50% {
+                box-shadow: 0 0 50px rgba(74, 222, 128, 0.9);
+            }
+        }
+
+        .bar {
+            width: 5px;
+            height: 25px;
+            background: linear-gradient(180deg, #ec4899 0%, #f472b6 100%);
+            border-radius: 3px;
+            animation: wave 0.6s infinite;
+        }
+
+        @keyframes wave {
+
+            0%,
+            100% {
+                height: 25px;
+            }
+
+            50% {
+                height: 55px;
+            }
+        }
+
+        .speaker-icon {
+            position: absolute;
+            right: 25px;
+            font-size: 32px;
+            animation: speaker-pulse 1s infinite;
+            display: none;
+        }
+
+        .visualizer.speaking .speaker-icon {
+            display: block;
+        }
+
+        @keyframes speaker-pulse {
+
+            0%,
+            100% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.3);
+            }
+        }
+
+        #console {
+            background: linear-gradient(135deg, #1e1e1e 0%, #2d2d2d 100%);
+            color: #f472b6;
+            padding: 25px;
+            border-radius: 20px;
+            font-family: 'Courier New', monospace;
+            height: 400px;
+            overflow-y: auto;
+            font-size: 13px;
+            line-height: 1.8;
+            border: 3px solid #ec4899;
+            box-shadow: 0 10px 30px rgba(236, 72, 153, 0.2);
+        }
+
+        #console::-webkit-scrollbar {
             width: 10px;
         }
 
-        #logs::-webkit-scrollbar-thumb {
-            background: linear-gradient(135deg, #ec4899 0%, #db2777 100%);
-            border-radius: 5px;
+        #console::-webkit-scrollbar-track {
+            background: #1e1e1e;
+            border-radius: 10px;
         }
 
-        #logs::-webkit-scrollbar-track {
-            background: rgba(236, 72, 153, 0.1);
-            border-radius: 5px;
+        #console::-webkit-scrollbar-thumb {
+            background: #ec4899;
+            border-radius: 10px;
+        }
+
+        .log-entry {
+            margin-bottom: 8px;
+            display: flex;
+            gap: 12px;
+            padding: 4px 0;
+        }
+
+        .log-time {
+            color: #94a3b8;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .log-success {
+            color: #4ade80;
+            font-weight: 500;
+        }
+
+        .log-error {
+            color: #fb7185;
+            font-weight: 600;
+        }
+
+        .log-warning {
+            color: #fbbf24;
+            font-weight: 500;
+        }
+
+        .log-info {
+            color: #60a5fa;
+            font-weight: 500;
+        }
+
+        .heart-icon {
+            display: inline-block;
+            animation: heartbeat 1.5s infinite;
+        }
+
+        @keyframes heartbeat {
+
+            0%,
+            100% {
+                transform: scale(1);
+            }
+
+            10%,
+            30% {
+                transform: scale(1.1);
+            }
+
+            20%,
+            40% {
+                transform: scale(0.95);
+            }
         }
     </style>
 </head>
 
 <body>
-    <div class="header">
-        <div>
-            <h1>🎯 EVA Family Portal</h1>
-            <p style="margin-top: 8px; opacity: 0.9;">Dashboard de Monitoramento em Tempo Real</p>
+    <div class="container">
+        <div class="header">
+            <h1><span class="heart-icon">💖</span> EVA - Assistente Cuidadora</h1>
+            <div class="tagline">Cuidando com carinho e tecnologia</div>
         </div>
-        <div class="status-badge">
-            <div class="status-dot"></div>
-            <span>Online</span>
-        </div>
-    </div>
 
-    <div class="logs-container">
-        <div class="logs-header">
-            <div class="logs-title">
-                🔴 Logs do Servidor EVA-Mind
+        <div class="card">
+            <p class="subtitle">🌸 Sistema de Conversação por Voz Otimizado 🌸</p>
+
+            <div class="alert">
+                <div class="alert-title">✨ Tecnologia de Ponta para Melhor Cuidado</div>
+                <div class="alert-text">
+                    🎵 Áudio PCM16 @ 16kHz | 🔄 Buffer de 200ms | 🎧 Reprodução suave @ 24kHz<br>
+                    <strong>🌐 Servidor será carregado automaticamente</strong>
+                </div>
             </div>
-            <div class="error-count" id="errorCount">0 Erros</div>
+
+            <div style="text-align: center;">
+                <div id="status" class="status-badge status-offline">
+                    🔴 OFFLINE
+                </div>
+            </div>
+
+            <div class="controls">
+                <button id="btnStart" onclick="start()">
+                    💬 CONVERSAR COM EVA
+                </button>
+                <button id="btnStop" onclick="stop()">
+                    👋 ENCERRAR CONVERSA
+                </button>
+            </div>
+
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="info-label">👤 CPF</div>
+                    <div class="info-value">645.254.302-49</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">📊 Status</div>
+                    <div class="info-value" id="statusText">Aguardando</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">🎤 Sample Rate</div>
+                    <div class="info-value">16kHz</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">⏱️ Buffer</div>
+                    <div class="info-value">200ms</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">📤 Enviados</div>
+                    <div class="info-value" id="audioSent">0</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">📥 Recebidos</div>
+                    <div class="info-value" id="audioReceived">0</div>
+                </div>
+            </div>
+
+            <div class="visualizer" id="visualizer">
+                <div class="bar" style="animation-delay: 0s"></div>
+                <div class="bar" style="animation-delay: 0.1s"></div>
+                <div class="bar" style="animation-delay: 0.2s"></div>
+                <div class="bar" style="animation-delay: 0.3s"></div>
+                <div class="bar" style="animation-delay: 0.4s"></div>
+                <div class="bar" style="animation-delay: 0.4s"></div>
+                <div class="bar" style="animation-delay: 0.3s"></div>
+                <div class="bar" style="animation-delay: 0.2s"></div>
+                <div class="bar" style="animation-delay: 0.1s"></div>
+                <div class="bar" style="animation-delay: 0s"></div>
+                <span class="speaker-icon">🔊</span>
+            </div>
         </div>
-        <div id="logs"></div>
+
+        <div class="card">
+            <h2 style="margin-bottom: 20px; color: #db2777; text-align: center;">📜 Console de Atividades</h2>
+            <div id="console"></div>
+        </div>
     </div>
 
     <script>
-        let errorCount = 0;
-        let warnCount = 0;
-        let lastErrorSound = 0;
-        let lastWarnSound = 0;
+        const CPF = "64525430249";
+        let WS_URL = null; // Será carregado dinamicamente do servidor
+        const TARGET_SAMPLE_RATE = 16000;
 
-        function playErrorSound() {
-            const now = Date.now();
-            // Evitar tocar som muito frequentemente (máximo 1 por segundo)
-            if (now - lastErrorSound < 1000) return;
-            lastErrorSound = now;
+        let ws = null;
+        let audioContext = null;
+        let audioWorklet = null;
+        let mediaStream = null;
+        let isActive = false;
+        let audioSentCount = 0;
+        let audioReceivedCount = 0;
+        let sessionID = null;
 
+        const consoleEl = document.getElementById('console');
+        const statusEl = document.getElementById('status');
+        const statusTextEl = document.getElementById('statusText');
+        const audioSentEl = document.getElementById('audioSent');
+        const audioReceivedEl = document.getElementById('audioReceived');
+        const visualizerEl = document.getElementById('visualizer');
+        const btnStart = document.getElementById('btnStart');
+        const btnStop = document.getElementById('btnStop');
+
+        function log(msg, type = 'success') {
+            const time = new Date().toLocaleTimeString();
+            const colors = {
+                success: 'log-success',
+                error: 'log-error',
+                warning: 'log-warning',
+                info: 'log-info'
+            };
+
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.innerHTML = `
+                <span class="log-time">[${time}]</span>
+                <span class="${colors[type]}">${msg}</span>
+            `;
+
+            consoleEl.appendChild(entry);
+            consoleEl.scrollTop = consoleEl.scrollHeight;
+        }
+
+        function updateStatus(status, text) {
+            statusEl.className = `status-badge status-${status}`;
+            const icons = {
+                offline: '🔴',
+                connecting: '🔵',
+                online: '🟢',
+                active: '💖'
+            };
+            statusEl.textContent = `${icons[status]} ${text.toUpperCase()}`;
+            statusTextEl.textContent = text;
+        }
+
+        const workletCode = `
+class PCM16Processor extends AudioWorkletProcessor {
+    constructor() {
+        super();
+        this.bufferSize = 1600;
+        this.buffer = new Float32Array(this.bufferSize);
+        this.bufferIndex = 0;
+    }
+
+    process(inputs, outputs, parameters) {
+        const input = inputs[0];
+        if (!input || !input[0]) return true;
+
+        const samples = input[0];
+        
+        for (let i = 0; i < samples.length; i++) {
+            this.buffer[this.bufferIndex++] = samples[i];
+            
+            if (this.bufferIndex >= this.bufferSize) {
+                const pcm16 = new Int16Array(this.bufferSize);
+                for (let j = 0; j < this.bufferSize; j++) {
+                    const s = Math.max(-1, Math.min(1, this.buffer[j]));
+                    pcm16[j] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+                }
+                
+                this.port.postMessage(pcm16.buffer, [pcm16.buffer]);
+                
+                this.buffer = new Float32Array(this.bufferSize);
+                this.bufferIndex = 0;
+            }
+        }
+        
+        return true;
+    }
+}
+
+registerProcessor('pcm16-processor', PCM16Processor);
+`;
+
+        async function fetchConfig() {
+            log('⚙️ Carregando configuração do servidor...', 'info');
             try {
-                const context = new (window.AudioContext || window.webkitAudioContext)();
-
-                // Som de erro - beep duplo
-                const oscillator1 = context.createOscillator();
-                const gainNode1 = context.createGain();
-
-                oscillator1.connect(gainNode1);
-                gainNode1.connect(context.destination);
-
-                oscillator1.frequency.value = 800;
-                oscillator1.type = 'square';
-                gainNode1.gain.setValueAtTime(0.3, context.currentTime);
-                gainNode1.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.1);
-
-                oscillator1.start(context.currentTime);
-                oscillator1.stop(context.currentTime + 0.1);
-
-                // Segundo beep
-                const oscillator2 = context.createOscillator();
-                const gainNode2 = context.createGain();
-
-                oscillator2.connect(gainNode2);
-                gainNode2.connect(context.destination);
-
-                oscillator2.frequency.value = 600;
-                oscillator2.type = 'square';
-                gainNode2.gain.setValueAtTime(0.3, context.currentTime + 0.15);
-                gainNode2.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.25);
-
-                oscillator2.start(context.currentTime + 0.15);
-                oscillator2.stop(context.currentTime + 0.25);
-
-                console.log('🔊 Som de erro tocado!');
-            } catch (e) {
-                console.error('Erro ao tocar som:', e);
+                const response = await fetch('/api/config');
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                const config = await response.json();
+                WS_URL = config.wsUrl;
+                log(`✅ Configuração carregada: ${WS_URL}`, 'success');
+            } catch (err) {
+                log(`❌ Erro ao buscar config: ${err.message}`, 'error');
+                log('💡 Verifique se SERVER_URL está no .env e reinicie o servidor', 'warning');
+                throw new Error('Falha ao carregar configuração do servidor');
             }
         }
 
-        function playWarningSound() {
-            const now = Date.now();
-            // Evitar tocar som muito frequentemente (máximo 1 por segundo)
-            if (now - lastWarnSound < 1000) return;
-            lastWarnSound = now;
+        async function start() {
+            if (isActive) {
+                log('⚠️ EVA já está ativa', 'warning');
+                return;
+            }
 
             try {
-                const context = new (window.AudioContext || window.webkitAudioContext)();
+                btnStart.disabled = true;
+                consoleEl.innerHTML = '';
+                log('💖 Iniciando EVA - Assistente Cuidadora...', 'info');
 
-                // Som de alerta - beep único mais suave
-                const oscillator = context.createOscillator();
-                const gainNode = context.createGain();
+                updateStatus('connecting', 'Conectando');
 
-                oscillator.connect(gainNode);
-                gainNode.connect(context.destination);
+                await fetchConfig();
+                await connectWebSocket();
+                await registerClient();
+                await initializeAudio();
 
-                oscillator.frequency.value = 500;
-                oscillator.type = 'sine';
-                gainNode.gain.setValueAtTime(0.2, context.currentTime);
-                gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.15);
+                isActive = true;
+                btnStart.style.display = 'none';
+                btnStop.style.display = 'block';
+                visualizerEl.classList.add('active');
 
-                oscillator.start(context.currentTime);
-                oscillator.stop(context.currentTime + 0.15);
+                updateStatus('active', 'Conversando');
+                log('✅ PRONTO! EVA está ouvindo com carinho 💕', 'success');
 
-                console.log('⚠️ Som de alerta tocado!');
-            } catch (e) {
-                console.error('Erro ao tocar som:', e);
+            } catch (err) {
+                log(`❌ Erro: ${err.message}`, 'error');
+                console.error(err);
+                cleanup();
             }
         }
 
-        async function fetchLogs() {
-            try {
-                const res = await fetch('/api/logs');
-                const data = await res.json();
-                const logsDiv = document.getElementById('logs');
-                logsDiv.innerHTML = '';
+        function connectWebSocket() {
+            return new Promise((resolve, reject) => {
+                log(`🔗 Conectando ao WebSocket...`, 'info');
 
-                let currentErrors = 0;
-                let currentWarns = 0;
+                const timeout = setTimeout(() => {
+                    reject(new Error('Timeout'));
+                }, 10000);
 
-                data.logs.forEach(log => {
-                    let cls = 'info';
-                    let icon = '📝';
+                ws = new WebSocket(WS_URL);
 
-                    if (log.includes('⚠️')) {
-                        cls = 'warn';
-                        icon = '⚠️';
-                        currentWarns++;
-                    }
-                    if (log.includes('❌')) {
-                        cls = 'error';
-                        icon = '❌';
-                        currentErrors++;
-                    }
-                    if (log.includes('✅')) {
-                        icon = '✅';
-                    }
-                    if (log.includes('📞')) {
-                        icon = '📞';
-                    }
-                    if (log.includes('⏱️')) {
-                        icon = '⏱️';
-                    }
-                    if (log.includes('🔄')) {
-                        icon = '🔄';
-                    }
-                    if (log.includes('✨')) {
-                        icon = '✨';
-                    }
+                ws.onopen = () => {
+                    clearTimeout(timeout);
+                    log('✅ Conexão estabelecida!', 'success');
+                    resolve();
+                };
 
-                    const div = document.createElement('div');
-                    div.className = 'log ' + cls;
-                    div.innerHTML = `
-                        <span class="log-icon">${icon}</span>
-                        <span>${log}</span>
-                    `;
-                    logsDiv.appendChild(div);
+                ws.onmessage = handleWebSocketMessage;
+
+                ws.onerror = (err) => {
+                    clearTimeout(timeout);
+                    log('❌ Erro na conexão', 'error');
+                    reject(new Error('Falha na conexão'));
+                };
+
+                ws.onclose = () => {
+                    log('👋 Desconectado', 'warning');
+                    if (isActive) {
+                        updateStatus('offline', 'Desconectado');
+                        cleanup();
+                    }
+                };
+            });
+        }
+
+        function registerClient() {
+            return new Promise((resolve, reject) => {
+                log(`🔐 Identificando usuário...`, 'info');
+
+                const timeout = setTimeout(() => {
+                    reject(new Error('Timeout no registro'));
+                }, 5000);
+
+                const handler = (event) => {
+                    if (typeof event.data === 'string') {
+                        try {
+                            const msg = JSON.parse(event.data);
+                            if (msg.type === 'registered') {
+                                clearTimeout(timeout);
+                                ws.removeEventListener('message', handler);
+                                log('✅ Usuário identificado com sucesso!', 'success');
+                                resolve();
+                            }
+                        } catch (e) { }
+                    }
+                };
+
+                ws.addEventListener('message', handler);
+
+                ws.send(JSON.stringify({
+                    type: 'register',
+                    cpf: CPF
+                }));
+            });
+        }
+
+        function startCall() {
+            return new Promise((resolve, reject) => {
+                log('🚀 Iniciando sessão com EVA...', 'info');
+
+                sessionID = `session-${Date.now()}`;
+
+                const timeout = setTimeout(() => {
+                    reject(new Error('Timeout ao iniciar chamada'));
+                }, 10000);
+
+                const handler = (event) => {
+                    if (typeof event.data === 'string') {
+                        try {
+                            const msg = JSON.parse(event.data);
+                            if (msg.type === 'session_created') {
+                                clearTimeout(timeout);
+                                ws.removeEventListener('message', handler);
+                                log('✅ Sessão criada! EVA está pronta para cuidar 💕', 'success');
+                                resolve();
+                            }
+                        } catch (e) { }
+                    }
+                };
+
+                ws.addEventListener('message', handler);
+
+                ws.send(JSON.stringify({
+                    type: 'start_call',
+                    cpf: CPF,
+                    session_id: sessionID
+                }));
+            });
+        }
+
+        function handleWebSocketMessage(event) {
+            if (typeof event.data === 'string') {
+                try {
+                    const msg = JSON.parse(event.data);
+                    if (msg.type === 'error') {
+                        log(`❌ Erro: ${msg.error}`, 'error');
+                    }
+                } catch (e) { }
+                return;
+            }
+
+            if (event.data instanceof Blob) {
+                event.data.arrayBuffer().then(buffer => {
+                    playAudio(buffer);
+                    audioReceivedCount++;
+                    audioReceivedEl.textContent = audioReceivedCount;
+
+                    visualizerEl.classList.add('speaking');
+                    setTimeout(() => {
+                        visualizerEl.classList.remove('speaking');
+                    }, 300);
+
+                    if (audioReceivedCount === 1) {
+                        log('🔊 EVA está respondendo com carinho!', 'success');
+                    }
                 });
-
-                // Atualizar contador de erros e tocar sons
-                if (currentErrors > errorCount) {
-                    playErrorSound();
-                }
-                if (currentWarns > warnCount) {
-                    playWarningSound();
-                }
-                errorCount = currentErrors;
-                warnCount = currentWarns;
-                document.getElementById('errorCount').textContent = errorCount + ' Erros';
-
-                logsDiv.scrollTop = logsDiv.scrollHeight;
-            } catch (e) {
-                console.error('Erro ao buscar logs:', e);
-                const logsDiv = document.getElementById('logs');
-                const div = document.createElement('div');
-                div.className = 'log error';
-                div.innerHTML = `
-                    <span class="log-icon">❌</span>
-                    <span><strong>[${new Date().toLocaleTimeString('pt-BR')}]</strong> ERRO: Não foi possível conectar ao servidor de logs</span>
-                `;
-                logsDiv.appendChild(div);
             }
         }
 
-        // Atualiza a cada 2 segundos
-        setInterval(fetchLogs, 2000);
-        fetchLogs();
+        async function initializeAudio() {
+            log('🎤 Configurando microfone @ 16kHz...', 'info');
+
+            mediaStream = await navigator.mediaDevices.getUserMedia({
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true,
+                    sampleRate: TARGET_SAMPLE_RATE,
+                    channelCount: 1
+                }
+            });
+
+            log('✅ Microfone configurado', 'success');
+
+            audioContext = new AudioContext({ sampleRate: TARGET_SAMPLE_RATE });
+            log(`✅ AudioContext @ ${audioContext.sampleRate}Hz`, 'success');
+
+            const blob = new Blob([workletCode], { type: 'application/javascript' });
+            const workletUrl = URL.createObjectURL(blob);
+
+            await audioContext.audioWorklet.addModule(workletUrl);
+            log('✅ Processador de áudio ativo', 'success');
+
+            const source = audioContext.createMediaStreamSource(mediaStream);
+            audioWorklet = new AudioWorkletNode(audioContext, 'pcm16-processor');
+
+            audioWorklet.port.onmessage = (event) => {
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(event.data);
+                    audioSentCount++;
+                    audioSentEl.textContent = audioSentCount;
+                }
+            };
+
+            source.connect(audioWorklet);
+            audioWorklet.connect(audioContext.destination);
+
+            log('✅ Sistema de áudio pronto!', 'success');
+        }
+
+        let playbackContext = null;
+        let playbackQueue = [];
+        let isPlaying = false;
+        let accumulatedAudio = [];
+        let isBuffering = true;
+        const MIN_BUFFER_SIZE = 4800;
+
+        async function playAudio(pcm16Buffer) {
+            if (!playbackContext) {
+                playbackContext = new AudioContext({ sampleRate: 24000 });
+                log('🔊 Reprodução @ 24kHz com buffer', 'info');
+            }
+
+            const pcm16 = new Int16Array(pcm16Buffer);
+            const float32 = new Float32Array(pcm16.length);
+
+            for (let i = 0; i < pcm16.length; i++) {
+                float32[i] = pcm16[i] / (pcm16[i] < 0 ? 0x8000 : 0x7FFF);
+            }
+
+            accumulatedAudio.push(...float32);
+
+            if (accumulatedAudio.length >= MIN_BUFFER_SIZE || !isBuffering) {
+                isBuffering = false;
+
+                const audioBuffer = playbackContext.createBuffer(
+                    1,
+                    accumulatedAudio.length,
+                    playbackContext.sampleRate
+                );
+                audioBuffer.getChannelData(0).set(new Float32Array(accumulatedAudio));
+
+                playbackQueue.push(audioBuffer);
+                accumulatedAudio = [];
+
+                if (!isPlaying) {
+                    playNextInQueue();
+                }
+            }
+        }
+
+        function playNextInQueue() {
+            if (playbackQueue.length === 0) {
+                isPlaying = false;
+                isBuffering = true;
+                return;
+            }
+
+            isPlaying = true;
+            const audioBuffer = playbackQueue.shift();
+
+            const source = playbackContext.createBufferSource();
+            source.buffer = audioBuffer;
+
+            const gainNode = playbackContext.createGain();
+            source.connect(gainNode);
+            gainNode.connect(playbackContext.destination);
+
+            source.onended = () => {
+                playNextInQueue();
+            };
+
+            source.start();
+        }
+
+        function stop() {
+            log('👋 Encerrando conversa...', 'warning');
+
+            if (ws) {
+                ws.send(JSON.stringify({ type: 'hangup' }));
+                ws.close();
+            }
+
+            cleanup();
+            log('✅ Até logo! EVA está sempre aqui para cuidar 💕', 'success');
+        }
+
+        function cleanup() {
+            isActive = false;
+
+            if (mediaStream) {
+                mediaStream.getTracks().forEach(t => t.stop());
+                mediaStream = null;
+            }
+
+            if (audioContext) {
+                audioContext.close();
+                audioContext = null;
+            }
+
+            if (playbackContext) {
+                playbackContext.close();
+                playbackContext = null;
+            }
+
+            audioWorklet = null;
+            ws = null;
+            playbackQueue = [];
+            isPlaying = false;
+            sessionID = null;
+            accumulatedAudio = [];
+            isBuffering = true;
+
+            btnStart.disabled = false;
+            btnStart.style.display = 'block';
+            btnStop.style.display = 'none';
+            visualizerEl.classList.remove('active', 'speaking');
+
+            audioSentCount = 0;
+            audioReceivedCount = 0;
+            audioSentEl.textContent = '0';
+            audioReceivedEl.textContent = '0';
+
+            updateStatus('offline', 'Offline');
+        }
+
+        log('💖 EVA - Assistente Cuidadora carregada', 'success');
+        log('🌸 Pronta para cuidar com carinho e tecnologia', 'success');
+
+        window.addEventListener('beforeunload', cleanup);
     </script>
 </body>
 

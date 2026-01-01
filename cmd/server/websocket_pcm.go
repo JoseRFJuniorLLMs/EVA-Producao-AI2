@@ -177,33 +177,24 @@ func (h *PCMWebSocketHandler) handleClientSend(client *PCMClient) {
 
 			audioPacketCount++
 
-			log.Printf("📤 ========================================")
-			log.Printf("📤 RECEBIDO ÁUDIO DO SendCh (Pacote #%d)", audioPacketCount)
-			log.Printf("📤 CPF: %s", client.CPF)
-			log.Printf("📤 Tamanho: %d bytes", len(audioData))
-			log.Printf("📤 Tentando enviar via WebSocket...")
-			log.Printf("📤 ========================================")
+			// Log reduzido: apenas a cada 10 pacotes
+			if audioPacketCount%10 == 1 || audioPacketCount <= 3 {
+				log.Printf("📤 [#%d] Enviando áudio (%d bytes) para CPF: %s", audioPacketCount, len(audioData), client.CPF)
+			}
 
 			client.mu.Lock()
 			err := client.Conn.WriteMessage(websocket.BinaryMessage, audioData)
 			client.mu.Unlock()
 
 			if err != nil {
-				log.Printf("❌ ========================================")
-				log.Printf("❌ ERRO ao enviar áudio via WebSocket!")
-				log.Printf("❌ CPF: %s", client.CPF)
-				log.Printf("❌ Pacote #%d", audioPacketCount)
-				log.Printf("❌ Erro: %v", err)
-				log.Printf("❌ ========================================")
+				log.Printf("❌ ERRO ao enviar áudio #%d para CPF %s: %v", audioPacketCount, client.CPF, err)
 				return
 			}
 
-			log.Printf("✅ ========================================")
-			log.Printf("✅ ÁUDIO ENVIADO VIA WEBSOCKET COM SUCESSO!")
-			log.Printf("✅ CPF: %s", client.CPF)
-			log.Printf("✅ Pacote #%d", audioPacketCount)
-			log.Printf("✅ Bytes enviados: %d", len(audioData))
-			log.Printf("✅ ========================================")
+			// Log de sucesso apenas para primeiros pacotes ou a cada 10
+			if audioPacketCount%10 == 1 || audioPacketCount <= 3 {
+				log.Printf("✅ [#%d] Áudio enviado com sucesso para CPF: %s", audioPacketCount, client.CPF)
+			}
 
 		case <-ticker.C:
 			log.Printf("🏓 Enviando ping para CPF: %s", client.CPF)

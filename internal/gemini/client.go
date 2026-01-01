@@ -3,7 +3,6 @@ package gemini
 import (
 	"context"
 	"encoding/base64"
-	"encoding/json"
 	"eva-mind/internal/config"
 	"fmt"
 	"log"
@@ -14,23 +13,23 @@ import (
 )
 
 type Client struct {
-	conn            *websocket.Conn
-	mu              sync.Mutex
-	cfg             *config.Config
-	audioBuffer     []byte
-	bufferMu        sync.Mutex
-	lastSendTime    time.Time
-	isProcessing    bool
-	processingMu    sync.Mutex
-	audioChan       chan []byte
-	stopChan        chan struct{}
+	conn         *websocket.Conn
+	mu           sync.Mutex
+	cfg          *config.Config
+	audioBuffer  []byte
+	bufferMu     sync.Mutex
+	lastSendTime time.Time
+	isProcessing bool
+	processingMu sync.Mutex
+	audioChan    chan []byte
+	stopChan     chan struct{}
 }
 
 const (
-	minChunkSize      = 3200  // 200ms @ 16kHz (aumentado!)
+	minChunkSize      = 1600  // 100ms @ 16kHz - OTIMIZADO para resposta mais rápida
 	maxBufferSize     = 16000 // 1s máximo
-	minSendInterval   = 200   // ms (aumentado para evitar spam)
-	processingTimeout = 3000  // ms
+	minSendInterval   = 100   // ms - REDUZIDO para menor latência
+	processingTimeout = 5000  // ms - AUMENTADO para evitar falsos positivos
 )
 
 func NewClient(ctx context.Context, cfg *config.Config) (*Client, error) {
@@ -54,7 +53,7 @@ func NewClient(ctx context.Context, cfg *config.Config) (*Client, error) {
 		cfg:          cfg,
 		audioBuffer:  make([]byte, 0, maxBufferSize),
 		lastSendTime: time.Now(),
-		audioChan:    make(chan []byte, 128),
+		audioChan:    make(chan []byte, 256), // AUMENTADO para evitar bloqueios
 		stopChan:     make(chan struct{}),
 	}
 
@@ -103,7 +102,7 @@ func (c *Client) flushBufferIfReady() {
 	}
 
 	timeSinceLastSend := time.Since(c.lastSendTime).Milliseconds()
-	
+
 	if timeSinceLastSend < minSendInterval {
 		return
 	}
@@ -134,7 +133,7 @@ func (c *Client) flushBuffer() {
 
 	toSend := make([]byte, len(c.audioBuffer))
 	copy(toSend, c.audioBuffer)
-	
+
 	c.audioBuffer = c.audioBuffer[:0]
 	c.lastSendTime = time.Now()
 
@@ -212,7 +211,10 @@ func (c *Client) SendAudio(audioData []byte) error {
 }
 
 func (c *Client) sendAudioInternal(audioData []byte) error {
-	log.Printf("🎤 Enviando %d bytes para Gemini", len(audioData))
+	// Log reduzido para performance
+	if len(audioData) > 10000 {
+		log.Printf("🎤 Enviando %d bytes para Gemini", len(audioData))
+	}
 
 	encoded := base64.StdEncoding.EncodeToString(audioData)
 
@@ -233,22 +235,25 @@ func (c *Client) sendAudioInternal(audioData []byte) error {
 
 	if err != nil {
 		log.Printf("❌ Erro ao enviar: %v", err)
-		
+
 		c.processingMu.Lock()
 		c.isProcessing = false
 		c.processingMu.Unlock()
-		
+
 		return err
 	}
 
-	log.Printf("✅ Áudio enviado com sucesso (%d bytes)", len(audioData))
+	// Log reduzido para performance
+	if len(audioData) > 10000 {
+		log.Printf("✅ Áudio enviado com sucesso (%d bytes)", len(audioData))
+	}
 	return nil
 }
 
 func (c *Client) ReadResponse() (map[string]interface{}, error) {
 	var response map[string]interface{}
 	err := c.conn.ReadJSON(&response)
-	
+
 	c.processingMu.Lock()
 	c.isProcessing = false
 	c.processingMu.Unlock()
@@ -269,7 +274,7 @@ func (c *Client) ReadResponse() (map[string]interface{}, error) {
 					if partMap, ok := part.(map[string]interface{}); ok {
 						if text, ok := partMap["text"].(string); ok && text != "" {
 							log.Printf("🎤 USUÁRIO: \"%s\"", text)
-							
+
 							// ============================================================
 							// VERIFICAÇÃO: Se EVA responder em inglês, alertar!
 							// ============================================================
@@ -294,7 +299,7 @@ func (c *Client) ReadResponse() (map[string]interface{}, error) {
 							if !isMarkdownOnly(text) {
 								log.Printf("🗣️ EVA: \"%s\"", text)
 							}
-							
+
 							if containsEnglishMarkers(text) {
 								log.Printf("🚨🚨🚨 CRÍTICO: EVA respondeu em INGLÊS!")
 							}
@@ -314,7 +319,7 @@ func containsEnglishMarkers(text string) bool {
 		"Embracing", "User", "Interaction", "I've", "I'm",
 		"Offering", "welcome", "registered", "greeting",
 	}
-	
+
 	for _, word := range englishWords {
 		if contains(text, word) {
 			return true
@@ -329,16 +334,16 @@ func isMarkdownOnly(text string) bool {
 }
 
 func contains(text, substr string) bool {
-	return len(text) >= len(substr) && 
-		   (text[:len(substr)] == substr || 
-		    contains(text[1:], substr))
+	return len(text) >= len(substr) &&
+		(text[:len(substr)] == substr ||
+			contains(text[1:], substr))
 }
 
 func (c *Client) Close() error {
 	log.Printf("🔌 Fechando Gemini Client...")
-	
+
 	close(c.stopChan)
-	
+
 	c.bufferMu.Lock()
 	if len(c.audioBuffer) > 0 {
 		log.Printf("📤 Enviando %d bytes finais...", len(c.audioBuffer))
